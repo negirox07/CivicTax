@@ -1,4 +1,7 @@
--- ==============================================================================
+/**
+ * Complete Supabase PostgreSQL Schema for CivicTax
+ */
+export const SUPABASE_SQL_SCHEMA = `-- ==============================================================================
 -- CivicTax - Supabase SQL Schema
 -- Table: tax_records
 -- Description: Stores citizen participatory budget allocations, tax amounts,
@@ -88,3 +91,4 @@ EXCEPTION
         -- Publication supabase_realtime may not exist in some setups, ignore safely
         NULL;
 END $$;
+`;

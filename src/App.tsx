@@ -5,8 +5,13 @@ import { TaxFilingForm } from './components/TaxFilingForm';
 import { DashboardView } from './components/DashboardView';
 import { PdfReportsView } from './components/PdfReportsView';
 import { CivicTransparencyView } from './components/CivicTransparencyView';
+import { AboutUsView } from './components/AboutUsView';
+import { PrivacyPolicyView } from './components/PrivacyPolicyView';
 import { CertificateModal } from './components/CertificateModal';
-import { TaxRecord } from './types';
+import { AuthModal } from './components/AuthModal';
+import { AuthGate } from './components/AuthGate';
+import { SupabaseSetupModal } from './components/SupabaseSetupModal';
+import { TaxRecord, CitizenUser } from './types';
 import {
   fetchAllTaxRecords,
   persistTaxRecord,
@@ -14,15 +19,29 @@ import {
 } from './utils/dataService';
 import { resetToSampleData } from './utils/storage';
 import { generateTaxCertificatePdf } from './utils/pdfExport';
-import { Landmark, ShieldCheck } from 'lucide-react';
+import {
+  getStoredCurrentUser,
+  setStoredCurrentUser,
+  filterRecordsForCitizen,
+} from './utils/authService';
+import { Landmark, ShieldCheck, Mail, Github, HeartHandshake } from 'lucide-react';
 
 export default function App() {
   const [records, setRecords] = useState<TaxRecord[]>([]);
+  const [currentUser, setCurrentUser] = useState<CitizenUser | null>(() => getStoredCurrentUser());
   const [activeTab, setActiveTab] = useState<AppNavTab>('global');
   const [editingRecord, setEditingRecord] = useState<TaxRecord | null>(null);
   const [inspectedRecord, setInspectedRecord] = useState<TaxRecord | null>(null);
   const [dataSource, setDataSource] = useState<'SUPABASE' | 'LOCAL_STORAGE'>('LOCAL_STORAGE');
   const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  // Auth modal state
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+  const [authModalTab, setAuthModalTab] = useState<'demo' | 'login' | 'register'>('demo');
+  const [authRedirectMessage, setAuthRedirectMessage] = useState<string | undefined>(undefined);
+
+  // Supabase Setup & Schema Modal state
+  const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState<boolean>(false);
 
   // Load records from Supabase (or local fallback)
   const loadData = useCallback(async () => {
@@ -42,11 +61,32 @@ export default function App() {
     loadData();
   }, [loadData]);
 
+  // Filter personal records for currently logged-in citizen
+  const userRecords = filterRecordsForCitizen(records, currentUser);
+
   // Save or update a record
   const handleSaveRecord = async (record: TaxRecord) => {
     const res = await persistTaxRecord(record);
     setRecords(res.updatedRecords);
     setEditingRecord(null);
+
+    // If not logged in or email/pan matches submitted record, auto-log in as this taxpayer
+    if (!currentUser) {
+      const citizenUser: CitizenUser = {
+        id: `usr_${Date.now()}`,
+        fullName: record.fullName,
+        email: record.email,
+        panNumber: record.panNumber,
+        aadhaarNumber: record.aadhaarNumber,
+        phone: record.phone,
+        profession: record.profession,
+        state: record.state,
+        city: record.city,
+        pincode: record.pincode,
+      };
+      setCurrentUser(citizenUser);
+      setStoredCurrentUser(citizenUser);
+    }
   };
 
   // Delete a record
@@ -65,14 +105,26 @@ export default function App() {
     }
   };
 
-  // Trigger New Filing
+  // Trigger New Filing (Requires Login)
   const handleNewFiling = () => {
+    if (!currentUser) {
+      handleOpenAuthModal(
+        'login',
+        'Citizen login required: Please sign in or register to submit tax returns and direct your budget allocations.'
+      );
+      setActiveTab('filing');
+      return;
+    }
     setEditingRecord(null);
     setActiveTab('filing');
   };
 
-  // Trigger Edit
+  // Trigger Edit (Requires Login)
   const handleSelectEdit = (record: TaxRecord) => {
+    if (!currentUser) {
+      handleOpenAuthModal('login', 'Please sign in to edit your tax records.');
+      return;
+    }
     setEditingRecord(record);
     setActiveTab('filing');
   };
@@ -80,6 +132,28 @@ export default function App() {
   // Trigger PDF Download
   const handleDownloadPdf = async (record: TaxRecord) => {
     await generateTaxCertificatePdf(record);
+  };
+
+  // Auth Handlers
+  const handleOpenAuthModal = (tab: 'demo' | 'login' | 'register' = 'demo', message?: string) => {
+    setAuthModalTab(tab);
+    setAuthRedirectMessage(message);
+    setIsAuthModalOpen(true);
+  };
+
+  const handleAuthSuccess = (user: CitizenUser) => {
+    setCurrentUser(user);
+    setStoredCurrentUser(user);
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    setStoredCurrentUser(null);
+  };
+
+  const handleSelectCitizenProfile = (user: CitizenUser) => {
+    setCurrentUser(user);
+    setStoredCurrentUser(user);
   };
 
   return (
@@ -93,58 +167,129 @@ export default function App() {
             setEditingRecord(null);
           }
         }}
-        records={records}
+        userRecords={userRecords}
+        allRecords={records}
+        currentUser={currentUser}
+        onOpenAuthModal={() => handleOpenAuthModal('demo')}
+        onLogout={handleLogout}
+        onSelectCitizen={handleSelectCitizenProfile}
         onResetData={handleResetData}
         onNewFiling={handleNewFiling}
+        onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
         dataSource={dataSource}
       />
 
       {/* Main View Router */}
       <main className="flex-1">
-        {/* Landing Page: Global Public Dashboard */}
+        {/* LANDING PAGE: Global Public Dashboard (VISIBLE TO ALL) */}
         {activeTab === 'global' && (
           <GlobalDashboardView
             records={records}
+            currentUser={currentUser}
+            userRecordCount={userRecords.length}
+            onOpenAuthModal={() => handleOpenAuthModal('demo')}
             onStartFiling={handleNewFiling}
-            onGoToPersonalDashboard={() => setActiveTab('dashboard')}
-            onGoToReports={() => setActiveTab('reports')}
+            onGoToPersonalDashboard={() => {
+              if (currentUser) {
+                setActiveTab('dashboard');
+              } else {
+                handleOpenAuthModal('login', 'Please sign in to access your personal historical filings.');
+              }
+            }}
+            onGoToReports={() => {
+              if (currentUser) {
+                setActiveTab('reports');
+              } else {
+                handleOpenAuthModal('login', 'Please sign in to view and download your verified PDF certificates.');
+              }
+            }}
+            onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
             dataSource={dataSource}
             onReloadData={loadData}
           />
         )}
 
-        {/* Individual Tax Filing & Allocation Form */}
+        {/* INDIVIDUAL TAX FILING & ALLOCATION FORM (PROTECTED - REQUIRES LOGIN) */}
         {activeTab === 'filing' && (
-          <TaxFilingForm
-            initialData={editingRecord}
-            onSaveRecord={handleSaveRecord}
-            onGoToDashboard={() => setActiveTab('dashboard')}
-            onDownloadPdf={handleDownloadPdf}
-          />
+          currentUser ? (
+            <TaxFilingForm
+              initialData={editingRecord}
+              currentUser={currentUser}
+              onSaveRecord={handleSaveRecord}
+              onGoToDashboard={() => setActiveTab('dashboard')}
+              onDownloadPdf={handleDownloadPdf}
+            />
+          ) : (
+            <AuthGate
+              targetFeatureName="Participatory Tax Filing & Budget Allocation"
+              onOpenLoginModal={() =>
+                handleOpenAuthModal(
+                  'login',
+                  'Citizen login required: Please sign in or register to submit your tax returns and direct budget allocations.'
+                )
+              }
+              onSelectDemoUser={handleAuthSuccess}
+              onGoToGlobalDashboard={() => setActiveTab('global')}
+            />
+          )
         )}
 
-        {/* Citizen Personal Multi-Year Filings Dashboard */}
+        {/* CITIZEN PERSONAL MULTI-YEAR FILINGS DASHBOARD (PROTECTED - VISIBLE AFTER LOGIN) */}
         {activeTab === 'dashboard' && (
-          <DashboardView
-            records={records}
-            onSelectEdit={handleSelectEdit}
-            onDeleteRecord={handleDeleteRecord}
-            onDownloadPdf={handleDownloadPdf}
-            onNewFiling={handleNewFiling}
-            onViewCertModal={(rec) => setInspectedRecord(rec)}
-          />
+          currentUser ? (
+            <DashboardView
+              records={userRecords}
+              onSelectEdit={handleSelectEdit}
+              onDeleteRecord={handleDeleteRecord}
+              onDownloadPdf={handleDownloadPdf}
+              onNewFiling={handleNewFiling}
+              onViewCertModal={(rec) => setInspectedRecord(rec)}
+            />
+          ) : (
+            <AuthGate
+              targetFeatureName="Personal Tax Filings Ledger"
+              onOpenLoginModal={() => handleOpenAuthModal('login', 'Sign in to access your private multi-year tax records.')}
+              onSelectDemoUser={handleAuthSuccess}
+              onGoToGlobalDashboard={() => setActiveTab('global')}
+            />
+          )
         )}
 
-        {/* PDF Reports & Verification Center */}
+        {/* PDF REPORTS & VERIFICATION CENTER (PROTECTED - VISIBLE AFTER LOGIN) */}
         {activeTab === 'reports' && (
-          <PdfReportsView
-            records={records}
-            onNewFiling={handleNewFiling}
+          currentUser ? (
+            <PdfReportsView
+              records={userRecords}
+              onNewFiling={handleNewFiling}
+            />
+          ) : (
+            <AuthGate
+              targetFeatureName="Verified PDF Reports & Certificates"
+              onOpenLoginModal={() => handleOpenAuthModal('login', 'Sign in to generate official tax allocation certificates.')}
+              onSelectDemoUser={handleAuthSuccess}
+              onGoToGlobalDashboard={() => setActiveTab('global')}
+            />
+          )
+        )}
+
+        {/* CIVIC TRANSPARENCY & FISCAL MATRIX (PUBLIC - VISIBLE TO ALL) */}
+        {activeTab === 'transparency' && <CivicTransparencyView />}
+
+        {/* ABOUT US & CONNECT VIEW (PUBLIC - VISIBLE TO ALL) */}
+        {activeTab === 'about' && (
+          <AboutUsView
+            onStartFiling={handleNewFiling}
+            onGoToGlobalDashboard={() => setActiveTab('global')}
           />
         )}
 
-        {/* Civic Transparency & Fiscal Matrix */}
-        {activeTab === 'transparency' && <CivicTransparencyView />}
+        {/* PRIVACY POLICY & DATA GOVERNANCE VIEW (PUBLIC - VISIBLE TO ALL) */}
+        {activeTab === 'privacy' && (
+          <PrivacyPolicyView
+            onStartFiling={handleNewFiling}
+            onGoToGlobalDashboard={() => setActiveTab('global')}
+          />
+        )}
       </main>
 
       {/* Certificate Modal */}
@@ -153,24 +298,106 @@ export default function App() {
         onClose={() => setInspectedRecord(null)}
       />
 
+      {/* Citizen Authentication Modal */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onAuthSuccess={handleAuthSuccess}
+        initialTab={authModalTab}
+        redirectMessage={authRedirectMessage}
+      />
+
+      {/* Supabase Schema & Setup Modal */}
+      <SupabaseSetupModal
+        isOpen={isSupabaseModalOpen}
+        onClose={() => setIsSupabaseModalOpen(false)}
+        onSyncSuccess={() => {
+          loadData();
+        }}
+      />
+
       {/* Footer */}
-      <footer className="bg-[#0F172A] text-[#94A3B8] border-t border-[#1E293B] py-8 px-4 sm:px-6 lg:px-8 mt-12 text-xs">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2 text-[#94A3B8]">
-            <Landmark className="w-4 h-4 text-emerald-400" />
-            <span className="font-bold text-[#E2E8F0]">CivicTax</span>
-            <span>— National Citizen-Directed Tax Transparency Ledger & Participatory Budget Platform</span>
+      <footer className="bg-[#0F172A] text-[#94A3B8] border-t border-[#1E293B] py-8 px-4 sm:px-6 lg:px-8 mt-12 text-xs" id="app-footer">
+        <div className="max-w-7xl mx-auto space-y-6">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2 text-[#94A3B8]">
+              <Landmark className="w-4 h-4 text-emerald-400" />
+              <span className="font-bold text-[#E2E8F0]">CivicTax</span>
+              <span className="hidden sm:inline">— National Citizen-Directed Tax Transparency Ledger & Participatory Budget Platform</span>
+            </div>
+
+            <div className="flex items-center gap-4 text-xs flex-wrap justify-center">
+              <button
+                type="button"
+                onClick={() => setActiveTab('about')}
+                className={`transition hover:text-emerald-400 cursor-pointer ${
+                  activeTab === 'about' ? 'text-emerald-400 font-bold underline underline-offset-4' : 'text-[#94A3B8]'
+                }`}
+              >
+                About Us
+              </button>
+              <span>•</span>
+              <button
+                type="button"
+                onClick={() => setActiveTab('privacy')}
+                className={`transition hover:text-emerald-400 cursor-pointer ${
+                  activeTab === 'privacy' ? 'text-emerald-400 font-bold underline underline-offset-4' : 'text-[#94A3B8]'
+                }`}
+              >
+                Privacy Policy
+              </button>
+              <span>•</span>
+              <button
+                type="button"
+                onClick={() => setActiveTab('global')}
+                className={`transition hover:text-emerald-400 cursor-pointer ${
+                  activeTab === 'global' ? 'text-emerald-400 font-bold' : 'text-[#94A3B8]'
+                }`}
+              >
+                Consensus Ledger
+              </button>
+              <span>•</span>
+              <button
+                type="button"
+                onClick={() => setActiveTab('transparency')}
+                className={`transition hover:text-emerald-400 cursor-pointer ${
+                  activeTab === 'transparency' ? 'text-emerald-400 font-bold' : 'text-[#94A3B8]'
+                }`}
+              >
+                Fiscal Matrix
+              </button>
+            </div>
           </div>
 
-          <div className="flex items-center gap-4 text-[#64748B] text-xs">
-            <span className="flex items-center gap-1">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-              <span>256-Bit Masked Privacy Safe</span>
-            </span>
-            <span>•</span>
-            <span className="text-[#94A3B8]">Supabase Ready</span>
-            <span>•</span>
-            <span className="text-[#94A3B8]">Open Civic Governance</span>
+          <div className="pt-4 border-t border-[#1E293B] flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] text-[#64748B]">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="flex items-center gap-1 text-emerald-400 font-medium">
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>256-Bit Masked Privacy Safe</span>
+              </span>
+              <span>•</span>
+              <span>SHA-256 Ledger Seals</span>
+              <span>•</span>
+              <span>Supabase Production Storage Ready</span>
+            </div>
+
+            <div className="flex items-center gap-3 text-slate-400 font-mono">
+              <a
+                href="mailto:mukeshsingh.negi07@gmail.com"
+                className="hover:text-emerald-400 transition cursor-pointer"
+              >
+                mukeshsingh.negi07@gmail.com
+              </a>
+              <span>|</span>
+              <a
+                href="https://github.com/negirox"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-sky-400 transition cursor-pointer"
+              >
+                github.com/negirox
+              </a>
+            </div>
           </div>
         </div>
       </footer>

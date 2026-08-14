@@ -12,6 +12,98 @@ import {
   addOrUpdateTaxRecord as addOrUpdateLocalRecord,
   deleteTaxRecord as deleteLocalRecord,
 } from './storage';
+import { SUPABASE_SQL_SCHEMA } from '../data/supabaseSchema';
+
+/**
+ * Check whether an error message indicates that the PostgreSQL table 'public.tax_records' is missing.
+ */
+export function isTableNotFoundError(errorMsg?: string): boolean {
+  if (!errorMsg) return false;
+  const msg = errorMsg.toLowerCase();
+  return (
+    msg.includes('could not find the table') ||
+    msg.includes('schema cache') ||
+    msg.includes('relation "public.tax_records" does not exist') ||
+    msg.includes('relation "tax_records" does not exist') ||
+    msg.includes('pgrst205') ||
+    msg.includes('42p01')
+  );
+}
+
+/**
+ * Test the Supabase connection and return detailed diagnostic status
+ */
+export async function testSupabaseConnection(): Promise<{
+  status: 'CONNECTED' | 'TABLE_NOT_FOUND' | 'AUTH_ERROR' | 'NETWORK_ERROR' | 'NOT_CONFIGURED';
+  recordCount: number;
+  message: string;
+  rawError?: string;
+}> {
+  if (!isSupabaseConfigured()) {
+    return {
+      status: 'NOT_CONFIGURED',
+      recordCount: 0,
+      message: 'Supabase URL and API Key are not configured in environment variables.',
+    };
+  }
+
+  const supabase = getSupabaseClient();
+  if (!supabase) {
+    return {
+      status: 'NOT_CONFIGURED',
+      recordCount: 0,
+      message: 'Could not initialize Supabase client instance.',
+    };
+  }
+
+  try {
+    const { data, error, count } = await supabase
+      .from('tax_records')
+      .select('id', { count: 'exact' })
+      .limit(5);
+
+    if (error) {
+      if (isTableNotFoundError(error.message)) {
+        return {
+          status: 'TABLE_NOT_FOUND',
+          recordCount: 0,
+          message:
+            "Table 'public.tax_records' was not found in your Supabase database. Please run the SQL schema script in your Supabase SQL Editor.",
+          rawError: error.message,
+        };
+      }
+
+      if (error.message.includes('Invalid API key') || error.message.includes('JWT') || error.code === '401') {
+        return {
+          status: 'AUTH_ERROR',
+          recordCount: 0,
+          message: 'Supabase API Key authentication failed. Please verify your VITE_SUPABASE_ANON_KEY.',
+          rawError: error.message,
+        };
+      }
+
+      return {
+        status: 'NETWORK_ERROR',
+        recordCount: 0,
+        message: error.message,
+        rawError: error.message,
+      };
+    }
+
+    return {
+      status: 'CONNECTED',
+      recordCount: count ?? (data ? data.length : 0),
+      message: `Connected successfully to Supabase. Found ${count ?? data?.length ?? 0} citizen records in 'public.tax_records'.`,
+    };
+  } catch (err: any) {
+    return {
+      status: 'NETWORK_ERROR',
+      recordCount: 0,
+      message: err.message || 'Failed to connect to Supabase.',
+      rawError: err.message,
+    };
+  }
+}
 
 export interface SectorConsensusItem {
   sectorId: SectorId;
@@ -255,6 +347,8 @@ export async function syncLocalRecordsToSupabase(): Promise<{
   success: boolean;
   syncedCount: number;
   message: string;
+  tableNotFound?: boolean;
+  rawError?: string;
 }> {
   const supabase = getSupabaseClient();
   if (!supabase || !isSupabaseConfigured()) {
@@ -271,7 +365,23 @@ export async function syncLocalRecordsToSupabase(): Promise<{
     const { error } = await supabase.from('tax_records').upsert(rows, { onConflict: 'id' });
 
     if (error) {
-      return { success: false, syncedCount: 0, message: error.message };
+      if (isTableNotFoundError(error.message)) {
+        return {
+          success: false,
+          syncedCount: 0,
+          tableNotFound: true,
+          message:
+            "Could not find the table 'public.tax_records' in your Supabase project schema cache. Please create the table in Supabase SQL Editor.",
+          rawError: error.message,
+        };
+      }
+
+      return {
+        success: false,
+        syncedCount: 0,
+        message: error.message,
+        rawError: error.message,
+      };
     }
 
     return {
@@ -280,7 +390,16 @@ export async function syncLocalRecordsToSupabase(): Promise<{
       message: `Successfully synchronized ${rows.length} citizen tax records to Supabase Cloud.`,
     };
   } catch (err: any) {
-    return { success: false, syncedCount: 0, message: err.message };
+    const isMissingTable = isTableNotFoundError(err.message);
+    return {
+      success: false,
+      syncedCount: 0,
+      tableNotFound: isMissingTable,
+      message: isMissingTable
+        ? "Could not find the table 'public.tax_records' in your Supabase project schema cache. Please create the table in Supabase SQL Editor."
+        : err.message,
+      rawError: err.message,
+    };
   }
 }
 

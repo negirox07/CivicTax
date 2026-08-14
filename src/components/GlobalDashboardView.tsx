@@ -28,6 +28,8 @@ import {
   FileCheck2,
   Info,
   HelpCircle,
+  Scale,
+  PieChart as PieIcon,
 } from 'lucide-react';
 import {
   BarChart,
@@ -42,9 +44,9 @@ import {
   Cell,
   Legend,
 } from 'recharts';
-import { TaxRecord, SectorId } from '../types';
+import { TaxRecord, SectorId, CitizenUser } from '../types';
 import { SECTOR_DEFINITIONS } from '../data/sectors';
-import { formatCurrencyINR, formatCompactINR } from '../utils/formatters';
+import { formatCurrencyINR, formatCompactINR, maskPAN } from '../utils/formatters';
 import {
   calculateGlobalPublicStats,
   GlobalPublicStats,
@@ -60,50 +62,109 @@ import {
 
 interface GlobalDashboardViewProps {
   records: TaxRecord[];
+  currentUser?: CitizenUser | null;
+  userRecordCount?: number;
+  onOpenAuthModal?: () => void;
   onStartFiling: () => void;
   onGoToPersonalDashboard: () => void;
   onGoToReports: () => void;
+  onOpenSupabaseModal?: () => void;
   dataSource: 'SUPABASE' | 'LOCAL_STORAGE';
   onReloadData: () => void;
 }
 
 export const GlobalDashboardView: React.FC<GlobalDashboardViewProps> = ({
   records,
+  currentUser = null,
+  userRecordCount = 0,
+  onOpenAuthModal,
   onStartFiling,
   onGoToPersonalDashboard,
   onGoToReports,
+  onOpenSupabaseModal,
   dataSource,
   onReloadData,
 }) => {
   const [selectedFY, setSelectedFY] = useState<string>('ALL');
   const [selectedViewTab, setSelectedViewTab] = useState<'consensus' | 'sectors' | 'states' | 'proposals'>('consensus');
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
-  const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [syncStatus, setSyncStatus] = useState<{
+    message: string;
+    isError: boolean;
+    tableNotFound?: boolean;
+  } | null>(null);
 
   // Supabase cloud integration status
   const supabaseActive = isSupabaseActive();
   const supabaseConfigured = isSupabaseConfigured();
+
+  // Active hovered sector in Donut Chart
+  const [activeDonutSectorId, setActiveDonutSectorId] = useState<SectorId | null>(null);
+
+  // Sector comparison selection (e.g. Education vs Healthcare)
+  const [compareSectorA, setCompareSectorA] = useState<SectorId>('education');
+  const [compareSectorB, setCompareSectorB] = useState<SectorId>('healthcare');
+
+  // Check if current user is admin (mukeshsingh.negi07@gmail.com)
+  const isAdmin = currentUser?.email?.trim().toLowerCase() === 'mukeshsingh.negi07@gmail.com';
 
   // Compute aggregated public interest statistics
   const stats: GlobalPublicStats = useMemo(() => {
     return calculateGlobalPublicStats(records, selectedFY);
   }, [records, selectedFY]);
 
+  // Aggregate Donut Chart dataset sorted by citizen allocation volume
+  const aggregateDonutData = useMemo(() => {
+    return stats.sectorConsensus.map((sec) => ({
+      name: sec.name,
+      shortName: sec.shortName,
+      sectorId: sec.sectorId,
+      value: sec.citizenAvgPct,
+      amount: sec.totalAllocatedAmount,
+      color: sec.chartColor,
+      iconName: sec.iconName,
+      govBenchmarkPct: sec.govBenchmarkPct,
+      deltaPct: sec.deltaPct,
+      contributorsCount: sec.contributorsCount,
+    })).sort((a, b) => b.value - a.value);
+  }, [stats.sectorConsensus]);
+
+  const activeDonutItem = useMemo(() => {
+    if (!activeDonutSectorId) return null;
+    return aggregateDonutData.find((d) => d.sectorId === activeDonutSectorId) || null;
+  }, [activeDonutSectorId, aggregateDonutData]);
+
+  // Pairwise comparison stats
+  const sectorAStats = useMemo(() => {
+    return stats.sectorConsensus.find((s) => s.sectorId === compareSectorA) || stats.sectorConsensus[0];
+  }, [stats.sectorConsensus, compareSectorA]);
+
+  const sectorBStats = useMemo(() => {
+    return stats.sectorConsensus.find((s) => s.sectorId === compareSectorB) || stats.sectorConsensus[1];
+  }, [stats.sectorConsensus, compareSectorB]);
+
   // Handle manual Supabase sync
   const handleSyncToSupabase = async () => {
     setIsSyncing(true);
-    setSyncMessage(null);
+    setSyncStatus(null);
     try {
       const result = await syncLocalRecordsToSupabase();
-      setSyncMessage(result.message);
+      setSyncStatus({
+        message: result.message,
+        isError: !result.success,
+        tableNotFound: result.tableNotFound,
+      });
       if (result.success) {
         onReloadData();
+        setTimeout(() => setSyncStatus(null), 5000);
       }
     } catch (err: any) {
-      setSyncMessage(err.message || 'Failed to sync to Supabase');
+      setSyncStatus({
+        message: err.message || 'Failed to sync to Supabase',
+        isError: true,
+      });
     } finally {
       setIsSyncing(false);
-      setTimeout(() => setSyncMessage(null), 5000);
     }
   };
 
@@ -163,26 +224,62 @@ export const GlobalDashboardView: React.FC<GlobalDashboardViewProps> = ({
               </p>
             </div>
 
-            {/* Quick Action CTAs */}
-            <div className="flex flex-col sm:flex-row lg:flex-col gap-3 shrink-0">
+            {/* Quick Action CTAs & Citizen Status */}
+            <div className="flex flex-col gap-3 shrink-0 lg:w-72">
+              {currentUser ? (
+                <div className="bg-[#0A0B0D]/90 border border-emerald-500/30 rounded-2xl p-4 space-y-2 shadow-lg">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" /> Signed In Citizen
+                    </span>
+                    <span className="text-[10px] font-mono text-slate-400 bg-[#1E293B] px-1.5 py-0.5 rounded">
+                      {maskPAN(currentUser.panNumber)}
+                    </span>
+                  </div>
+                  <div className="text-xs font-bold text-white truncate">{currentUser.fullName}</div>
+                  <div className="text-[11px] text-[#94A3B8]">{userRecordCount} personal returns tracked</div>
+
+                  <button
+                    id="landing-hero-view-my-filings-btn"
+                    type="button"
+                    onClick={onGoToPersonalDashboard}
+                    className="w-full mt-2 py-2 px-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs shadow-md shadow-emerald-500/20 transition active:scale-95 cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <FileCheck2 className="w-3.5 h-3.5" />
+                    <span>Open My Private Filings ({userRecordCount})</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="bg-[#0A0B0D]/90 border border-[#1E293B] rounded-2xl p-4 space-y-2 shadow-lg">
+                  <div className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Citizen Taxpayer Access</span>
+                  </div>
+                  <p className="text-[11px] text-[#94A3B8] leading-tight">
+                    Sign in to track your personal tax history & download verifiable civic impact certificates.
+                  </p>
+                  {onOpenAuthModal && (
+                    <button
+                      id="landing-hero-signin-btn"
+                      type="button"
+                      onClick={onOpenAuthModal}
+                      className="w-full mt-1 py-2 px-3 rounded-xl bg-[#1E293B] hover:bg-[#334155] text-emerald-400 font-bold text-xs border border-emerald-500/30 transition active:scale-95 cursor-pointer flex items-center justify-center gap-1.5"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>Citizen Sign In / Quick Demo</span>
+                    </button>
+                  )}
+                </div>
+              )}
+
               <button
                 id="landing-hero-file-tax-btn"
                 type="button"
                 onClick={onStartFiling}
-                className="flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-6 py-3 rounded-xl shadow-lg shadow-emerald-500/20 transition active:scale-95 cursor-pointer text-sm"
+                className="w-full flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-4 py-2.5 rounded-xl shadow-lg shadow-emerald-500/20 transition active:scale-95 cursor-pointer text-xs sm:text-sm"
               >
                 <Sparkles className="w-4 h-4" />
-                <span>File Tax & Direct Budget</span>
-              </button>
-
-              <button
-                id="landing-hero-view-dashboard-btn"
-                type="button"
-                onClick={onGoToPersonalDashboard}
-                className="flex items-center justify-center gap-2 bg-[#1E293B] hover:bg-[#334155] text-[#E2E8F0] font-semibold px-5 py-2.5 rounded-xl border border-[#334155] transition active:scale-95 cursor-pointer text-xs sm:text-sm"
-              >
-                <FileCheck2 className="w-4 h-4 text-emerald-400" />
-                <span>View My Tracked Filings</span>
+                <span>File & Direct Budget</span>
               </button>
             </div>
           </div>
@@ -244,78 +341,128 @@ export const GlobalDashboardView: React.FC<GlobalDashboardViewProps> = ({
         </div>
       </div>
 
-      {/* Production Supabase & Storage Status Indicator Banner */}
-      <div className="bg-[#0F172A] border border-[#1E293B] rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div
-            className={`p-2.5 rounded-xl border flex items-center justify-center ${
-              dataSource === 'SUPABASE'
-                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30'
-            }`}
-          >
-            {dataSource === 'SUPABASE' ? <Cloud className="w-5 h-5" /> : <HardDrive className="w-5 h-5" />}
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-[#E2E8F0]">
-                Active Storage Engine:
-              </span>
-              <span
-                className={`text-xs font-mono font-bold px-2 py-0.5 rounded-md border ${
+      {/* Production Supabase & Storage Status Indicator Banner (ADMIN ONLY: mukeshsingh.negi07@gmail.com) */}
+      {isAdmin && (
+        <>
+          <div className="bg-[#0F172A] border border-[#1E293B] rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div
+                className={`p-2.5 rounded-xl border flex items-center justify-center ${
                   dataSource === 'SUPABASE'
-                    ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
-                    : 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30'
+                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                    : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30'
                 }`}
               >
-                {dataSource === 'SUPABASE' ? 'SUPABASE CLOUD DATABASE' : 'LOCAL LEDGER (OFFLINE MOCK)'}
-              </span>
+                {dataSource === 'SUPABASE' ? <Cloud className="w-5 h-5" /> : <HardDrive className="w-5 h-5" />}
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold uppercase tracking-wider text-[#E2E8F0]">
+                    Admin Storage Engine:
+                  </span>
+                  <span
+                    className={`text-xs font-mono font-bold px-2 py-0.5 rounded-md border ${
+                      dataSource === 'SUPABASE'
+                        ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                        : 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30'
+                    }`}
+                  >
+                    {dataSource === 'SUPABASE' ? 'SUPABASE CLOUD DATABASE' : 'LOCAL LEDGER (OFFLINE MOCK)'}
+                  </span>
+                </div>
+                <p className="text-xs text-[#94A3B8] mt-0.5">
+                  {dataSource === 'SUPABASE'
+                    ? 'Direct production database connectivity active. All citizen filings are persisted to Supabase.'
+                    : 'Single-flag architecture ready: toggle `VITE_USE_SUPABASE="true"` in `.env` to connect directly to Supabase cloud.'}
+                </p>
+              </div>
             </div>
-            <p className="text-xs text-[#94A3B8] mt-0.5">
-              {dataSource === 'SUPABASE'
-                ? 'Direct production database connectivity active. All citizen filings are persisted to Supabase.'
-                : 'Single-flag architecture ready: toggle `VITE_USE_SUPABASE="true"` in `.env` to connect directly to Supabase cloud.'}
-            </p>
+
+            {/* Supabase Controls */}
+            <div className="flex items-center gap-2 self-stretch sm:self-auto justify-end flex-wrap">
+              {onOpenSupabaseModal && (
+                <button
+                  id="open-supabase-setup-modal-btn"
+                  type="button"
+                  onClick={onOpenSupabaseModal}
+                  className="flex items-center gap-1.5 text-xs font-semibold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 px-3.5 py-2 rounded-xl border border-emerald-500/30 transition active:scale-95 cursor-pointer"
+                  title="View Supabase table schema and 1-click SQL migration"
+                >
+                  <Database className="w-3.5 h-3.5" />
+                  <span>SQL Schema & Setup</span>
+                </button>
+              )}
+
+              {supabaseConfigured && (
+                <button
+                  id="sync-to-supabase-btn"
+                  type="button"
+                  onClick={handleSyncToSupabase}
+                  disabled={isSyncing}
+                  className="flex items-center gap-1.5 text-xs font-semibold bg-[#1E293B] hover:bg-[#334155] text-[#E2E8F0] px-3.5 py-2 rounded-xl border border-[#334155] transition active:scale-95 cursor-pointer disabled:opacity-50"
+                  title="Push local data to Supabase"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-emerald-400' : ''}`} />
+                  <span>{isSyncing ? 'Syncing...' : 'Sync to Cloud'}</span>
+                </button>
+              )}
+
+              <button
+                id="toggle-storage-mode-btn"
+                type="button"
+                onClick={() => handleToggleSupabaseMode(!supabaseActive)}
+                className={`text-xs font-semibold px-3.5 py-2 rounded-xl border transition cursor-pointer flex items-center gap-1.5 ${
+                  supabaseActive
+                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20'
+                    : 'bg-[#1E293B] border-[#334155] text-[#94A3B8] hover:text-[#E2E8F0]'
+                }`}
+              >
+                <Layers className="w-3.5 h-3.5" />
+                <span>Mode: {supabaseActive ? 'Cloud Active' : 'Local Mock'}</span>
+              </button>
+            </div>
           </div>
-        </div>
 
-        {/* Supabase Controls */}
-        <div className="flex items-center gap-2 self-stretch sm:self-auto justify-end flex-wrap">
-          {syncMessage && (
-            <span className="text-xs font-mono text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20">
-              {syncMessage}
-            </span>
-          )}
-
-          {supabaseConfigured && (
-            <button
-              id="sync-to-supabase-btn"
-              type="button"
-              onClick={handleSyncToSupabase}
-              disabled={isSyncing}
-              className="flex items-center gap-1.5 text-xs font-semibold bg-[#1E293B] hover:bg-[#334155] text-[#E2E8F0] px-3.5 py-2 rounded-xl border border-[#334155] transition active:scale-95 cursor-pointer disabled:opacity-50"
-              title="Push local data to Supabase"
+          {/* Sync Status Alert Banner */}
+          {syncStatus && (
+            <div
+              className={`p-4 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs ${
+                syncStatus.isError
+                  ? 'bg-red-950/30 border-red-500/40 text-red-200'
+                  : 'bg-emerald-950/30 border-emerald-500/40 text-emerald-200'
+              }`}
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-emerald-400' : ''}`} />
-              <span>{isSyncing ? 'Syncing...' : 'Sync to Cloud'}</span>
-            </button>
-          )}
+              <div className="flex items-start gap-2.5">
+                {syncStatus.isError ? (
+                  <HelpCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                ) : (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                )}
+                <div>
+                  <div className="font-bold">
+                    {syncStatus.tableNotFound
+                      ? "Supabase Table 'public.tax_records' Not Created Yet"
+                      : syncStatus.isError
+                      ? 'Supabase Sync Notice'
+                      : 'Sync Successful'}
+                  </div>
+                  <p className="opacity-90 mt-0.5">{syncStatus.message}</p>
+                </div>
+              </div>
 
-          <button
-            id="toggle-storage-mode-btn"
-            type="button"
-            onClick={() => handleToggleSupabaseMode(!supabaseActive)}
-            className={`text-xs font-semibold px-3.5 py-2 rounded-xl border transition cursor-pointer flex items-center gap-1.5 ${
-              supabaseActive
-                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20'
-                : 'bg-[#1E293B] border-[#334155] text-[#94A3B8] hover:text-[#E2E8F0]'
-            }`}
-          >
-            <Database className="w-3.5 h-3.5" />
-            <span>Mode: {supabaseActive ? 'Cloud Active' : 'Local Mock'}</span>
-          </button>
-        </div>
-      </div>
+              {syncStatus.tableNotFound && onOpenSupabaseModal && (
+                <button
+                  type="button"
+                  onClick={onOpenSupabaseModal}
+                  className="px-3.5 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-lg shadow-md transition active:scale-95 cursor-pointer whitespace-nowrap"
+                >
+                  Setup Table (1-Click SQL)
+                </button>
+              )}
+            </div>
+          )}
+        </>
+      )}
 
       {/* Global Filter Bar & View Selector Tabs */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-[#1E293B] pb-4">
@@ -401,6 +548,279 @@ export const GlobalDashboardView: React.FC<GlobalDashboardViewProps> = ({
       {/* VIEW 1: CITIZEN CONSENSUS & AREAS OF TOP INTEREST */}
       {selectedViewTab === 'consensus' && (
         <div className="space-y-8">
+          {/* RECHARTS DONUT CHART: AGGREGATE CITIZEN-DEFINED BUDGET PRIORITIES */}
+          <div className="bg-[#0F172A] rounded-2xl border border-[#1E293B] p-6 sm:p-8 shadow-xl space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2 text-emerald-400 text-xs font-bold uppercase tracking-wider mb-1">
+                  <PieIcon className="w-4 h-4" />
+                  <span>Aggregate Citizen Budget Priorities</span>
+                </div>
+                <h2 className="text-xl sm:text-2xl font-bold font-serif text-white">
+                  National Citizen Budget Priorities (Donut Distribution)
+                </h2>
+                <p className="text-xs text-[#94A3B8] mt-1 max-w-2xl">
+                  Interactive Recharts donut visualization of aggregate citizen tax allocations across all 8 development sectors. Compare priority shares (such as Education vs. Healthcare) and inspect total public capital volume.
+                </p>
+              </div>
+
+              {/* Quick Pairwise Comparative Selector */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs text-[#94A3B8] font-semibold">Priority Focus:</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCompareSectorA('education');
+                    setCompareSectorB('healthcare');
+                    setActiveDonutSectorId(null);
+                  }}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                    compareSectorA === 'education' && compareSectorB === 'healthcare'
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                      : 'bg-[#0A0B0D] text-[#94A3B8] hover:text-white border border-[#1E293B]'
+                  }`}
+                >
+                  <GraduationCap className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>Education</span>
+                  <span className="text-[#64748B] text-[10px]">vs</span>
+                  <HeartPulse className="w-3.5 h-3.5 text-rose-400" />
+                  <span>Healthcare</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCompareSectorA('clean_energy');
+                    setCompareSectorB('infrastructure');
+                    setActiveDonutSectorId(null);
+                  }}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                    compareSectorA === 'clean_energy' && compareSectorB === 'infrastructure'
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                      : 'bg-[#0A0B0D] text-[#94A3B8] hover:text-white border border-[#1E293B]'
+                  }`}
+                >
+                  <Leaf className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Clean Energy</span>
+                  <span className="text-[#64748B] text-[10px]">vs</span>
+                  <Building2 className="w-3.5 h-3.5 text-sky-400" />
+                  <span>Infrastructure</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCompareSectorA('agriculture');
+                    setCompareSectorB('science_tech');
+                    setActiveDonutSectorId(null);
+                  }}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                    compareSectorA === 'agriculture' && compareSectorB === 'science_tech'
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                      : 'bg-[#0A0B0D] text-[#94A3B8] hover:text-white border border-[#1E293B]'
+                  }`}
+                >
+                  <Tractor className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Agriculture</span>
+                  <span className="text-[#64748B] text-[10px]">vs</span>
+                  <Atom className="w-3.5 h-3.5 text-purple-400" />
+                  <span>Science & Tech</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+              {/* Donut Chart Display */}
+              <div className="lg:col-span-5 flex flex-col items-center justify-center relative bg-[#0A0B0D]/70 rounded-2xl p-6 border border-[#1E293B]">
+                <div className="w-full h-72 relative">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={aggregateDonutData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={72}
+                        outerRadius={108}
+                        paddingAngle={3}
+                        dataKey="value"
+                        onMouseEnter={(_, index) => setActiveDonutSectorId(aggregateDonutData[index]?.sectorId || null)}
+                        onMouseLeave={() => setActiveDonutSectorId(null)}
+                        cursor="pointer"
+                      >
+                        {aggregateDonutData.map((entry) => (
+                          <Cell
+                            key={`donut-cell-${entry.sectorId}`}
+                            fill={entry.color}
+                            stroke={activeDonutSectorId === entry.sectorId ? '#FFFFFF' : '#0F172A'}
+                            strokeWidth={activeDonutSectorId === entry.sectorId ? 2.5 : 1}
+                            opacity={activeDonutSectorId === null || activeDonutSectorId === entry.sectorId ? 1 : 0.65}
+                          />
+                        ))}
+                      </Pie>
+                      <RechartsTooltip
+                        formatter={(val: any, _name: any, item: any) => [
+                          `${val}% (${formatCurrencyINR(item.payload.amount)})`,
+                          item.payload.name,
+                        ]}
+                        contentStyle={{
+                          borderRadius: '12px',
+                          backgroundColor: '#0A0B0D',
+                          borderColor: '#1E293B',
+                          color: '#E2E8F0',
+                          boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.6)',
+                        }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+
+                  {/* Center Donut Label Display */}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center px-4">
+                    {activeDonutItem ? (
+                      <>
+                        <span className="text-[10px] font-bold text-white uppercase tracking-wider line-clamp-1 max-w-[130px]">
+                          {activeDonutItem.shortName}
+                        </span>
+                        <span className="text-2xl font-black font-mono text-emerald-400 my-0.5">
+                          {activeDonutItem.value}%
+                        </span>
+                        <span className="text-[10px] text-[#94A3B8] font-mono">
+                          {formatCompactINR(activeDonutItem.amount)}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-[10px] uppercase font-bold text-[#64748B] tracking-wider">
+                          Consensus Total
+                        </span>
+                        <span className="text-2xl font-black font-mono text-white my-0.5">
+                          100%
+                        </span>
+                        <span className="text-[10px] text-emerald-400 font-bold">
+                          8 Priority Sectors
+                        </span>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                <div className="text-[11px] text-[#94A3B8] text-center mt-2 flex items-center justify-center gap-1.5">
+                  <Info className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  <span>Hover or tap donut wedges to isolate specific sector metrics</span>
+                </div>
+              </div>
+
+              {/* Priority Analysis & Head-to-Head Comparison */}
+              <div className="lg:col-span-7 space-y-4">
+                {/* Dynamic Head-to-Head Comparison Card (e.g., Education vs. Healthcare) */}
+                <div className="bg-[#0A0B0D] border border-emerald-500/30 rounded-2xl p-4 space-y-3 shadow-inner">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <Scale className="w-3.5 h-3.5" />
+                      <span>Priority Comparison: {sectorAStats?.shortName} vs {sectorBStats?.shortName}</span>
+                    </span>
+                    <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-md bg-[#1E293B] text-emerald-300 border border-emerald-500/20">
+                      {Math.abs(Number(((sectorAStats?.citizenAvgPct || 0) - (sectorBStats?.citizenAvgPct || 0)).toFixed(1)))}% Citizen Preference Margin
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div
+                      onClick={() => {
+                        setActiveDonutSectorId(activeDonutSectorId === sectorAStats?.sectorId ? null : sectorAStats?.sectorId || null);
+                      }}
+                      className={`p-3 rounded-xl border transition cursor-pointer ${
+                        activeDonutSectorId === sectorAStats?.sectorId
+                          ? 'bg-[#131E32] border-emerald-500 shadow-md'
+                          : 'bg-[#0F172A] border-[#1E293B] hover:border-[#334155]'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: sectorAStats?.chartColor }}></span>
+                          <span className="truncate">{sectorAStats?.shortName}</span>
+                        </span>
+                        <span className="text-xs font-mono font-bold text-emerald-400">
+                          {sectorAStats?.citizenAvgPct}%
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-[#94A3B8] font-mono">
+                        Capital: {formatCompactINR(sectorAStats?.totalAllocatedAmount || 0)}
+                      </div>
+                      <div className="text-[10px] text-slate-400 mt-1 flex items-center justify-between">
+                        <span>Govt: {sectorAStats?.govBenchmarkPct}%</span>
+                        <span className={sectorAStats?.deltaPct > 0 ? 'text-emerald-400 font-bold' : 'text-amber-400 font-bold'}>
+                          {sectorAStats?.deltaPct > 0 ? `+${sectorAStats?.deltaPct}% Demand` : `${sectorAStats?.deltaPct}%`}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div
+                      onClick={() => {
+                        setActiveDonutSectorId(activeDonutSectorId === sectorBStats?.sectorId ? null : sectorBStats?.sectorId || null);
+                      }}
+                      className={`p-3 rounded-xl border transition cursor-pointer ${
+                        activeDonutSectorId === sectorBStats?.sectorId
+                          ? 'bg-[#131E32] border-emerald-500 shadow-md'
+                          : 'bg-[#0F172A] border-[#1E293B] hover:border-[#334155]'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: sectorBStats?.chartColor }}></span>
+                          <span className="truncate">{sectorBStats?.shortName}</span>
+                        </span>
+                        <span className="text-xs font-mono font-bold text-emerald-400">
+                          {sectorBStats?.citizenAvgPct}%
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-[#94A3B8] font-mono">
+                        Capital: {formatCompactINR(sectorBStats?.totalAllocatedAmount || 0)}
+                      </div>
+                      <div className="text-[10px] text-slate-400 mt-1 flex items-center justify-between">
+                        <span>Govt: {sectorBStats?.govBenchmarkPct}%</span>
+                        <span className={sectorBStats?.deltaPct > 0 ? 'text-emerald-400 font-bold' : 'text-amber-400 font-bold'}>
+                          {sectorBStats?.deltaPct > 0 ? `+${sectorBStats?.deltaPct}% Demand` : `${sectorBStats?.deltaPct}%`}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 8-Sector Donut Legend & Allocation Chips */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {aggregateDonutData.map((item, idx) => {
+                    const isSelected = activeDonutSectorId === item.sectorId;
+                    return (
+                      <div
+                        key={item.sectorId}
+                        onMouseEnter={() => setActiveDonutSectorId(item.sectorId)}
+                        onMouseLeave={() => setActiveDonutSectorId(null)}
+                        onClick={() => setActiveDonutSectorId(isSelected ? null : item.sectorId)}
+                        className={`p-2.5 rounded-xl border transition cursor-pointer ${
+                          isSelected
+                            ? 'bg-[#131E32] border-emerald-500 scale-[1.02] shadow-md shadow-emerald-500/10'
+                            : 'bg-[#0A0B0D] border-[#1E293B] hover:border-[#334155]'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-1 mb-1">
+                          <span className="text-[11px] font-bold text-white truncate flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: item.color }}></span>
+                            <span className="truncate">{item.shortName}</span>
+                          </span>
+                          <span className="text-[10px] font-bold font-mono text-[#64748B]">#{idx + 1}</span>
+                        </div>
+                        <div className="flex items-baseline justify-between">
+                          <span className="text-xs font-mono font-black text-emerald-400">{item.value}%</span>
+                          <span className="text-[10px] font-mono text-[#94A3B8]">{formatCompactINR(item.amount)}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Main Comparison Chart: Citizen Consensus Demand vs Statutory Union Budget */}
           <div className="bg-[#0F172A] rounded-2xl border border-[#1E293B] p-6 sm:p-8 shadow-xl">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">

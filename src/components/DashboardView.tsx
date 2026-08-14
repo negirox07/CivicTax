@@ -198,10 +198,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       {/* Top Header with Citizen Tier & Year Selector */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#0F172A] rounded-2xl border border-[#1E293B] p-6 shadow-xl">
         <div>
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
             <span className={`inline-flex items-center gap-1 text-xs font-bold px-2.5 py-0.5 rounded-full border ${taxpayerTier.badgeBg} ${taxpayerTier.badgeColor} ${taxpayerTier.borderBadge}`}>
               <Award className="w-3.5 h-3.5" />
               <span>{taxpayerTier.tierName}</span>
+            </span>
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/25">
+              <CheckCircle2 className="w-3 h-3" />
+              <span>Public Growth & Open Data Consented</span>
             </span>
             <span className="text-xs text-[#64748B]">• {records.length} Recorded Tax Years</span>
           </div>

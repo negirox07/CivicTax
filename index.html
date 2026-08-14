@@ -1,18 +1,148 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>CivicTax - Citizen Tax Allocation & Civic Impact Tracker</title>
-    <meta name="description" content="A transparent civic tax allocation platform where citizens record annual tax filings, customize budget allocations for infrastructure, healthcare, and education, and export verified PDF reports." />
-    <meta property="og:title" content="CivicTax - Citizen Tax Allocation & Civic Impact Tracker" />
-    <meta property="og:description" content="Participatory citizen tax allocation, historical dashboard, and downloadable PDF reports." />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+
+    <!-- Primary SEO Metadata -->
+    <title>CivicTax — Citizen Tax Allocation, Participatory Budgeting & Civic Impact Platform</title>
+    <meta
+      name="title"
+      content="CivicTax — Citizen Tax Allocation, Participatory Budgeting & Civic Impact Platform"
+    />
+    <meta
+      name="description"
+      content="CivicTax empowers citizens to record income tax filings, customize participatory budget allocations across 8 national sectors (Education, Healthcare, Clean Energy, Infrastructure), compare against Union Budget statutory benchmarks, and generate SHA-256 verified civic impact certificates."
+    />
+    <meta
+      name="keywords"
+      content="CivicTax, tax allocation, participatory budgeting, citizen budget priorities, Indian income tax, tax impact tracker, public finance transparency, civic tech, union budget comparison, SHA-256 tax certificate, fiscal governance"
+    />
+    <meta name="author" content="CivicTax Civic Governance Foundation" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+    <meta name="googlebot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+    <link rel="canonical" href="https://civictax.org/" />
+
+    <!-- Mobile & PWA Theme Colors -->
+    <meta name="theme-color" content="#0F172A" />
+    <meta name="msapplication-TileColor" content="#0F172A" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="CivicTax" />
+
+    <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://civictax.org/" />
+    <meta property="og:site_name" content="CivicTax India" />
+    <meta property="og:locale" content="en_IN" />
+    <meta
+      property="og:title"
+      content="CivicTax — Citizen Tax Allocation & Participatory Budgeting"
+    />
+    <meta
+      property="og:description"
+      content="Empowering taxpayers with transparent participatory budgeting, real-time national consensus visualizations, AI fiscal simulations, and verifiable SHA-256 impact receipts."
+    />
+    <meta property="og:image" content="https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=1200&h=630&q=80" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="CivicTax National Citizen Tax Allocation Dashboard" />
+
+    <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:url" content="https://civictax.org/" />
+    <meta
+      name="twitter:title"
+      content="CivicTax — Citizen Tax Allocation & Civic Impact Platform"
+    />
+    <meta
+      name="twitter:description"
+      content="Direct your tax allocations, compare citizen priorities vs statutory Union Budget allocations, and generate cryptographic certificates."
+    />
+    <meta name="twitter:image" content="https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=1200&h=630&q=80" />
+    <meta name="twitter:creator" content="@CivicTax" />
+
+    <!-- Favicon & Icons -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2310B981' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'/><path d='m9 12 2 2 4-4'/></svg>" />
+
+    <!-- Structured Data (Schema.org JSON-LD for Google Search & Rich Results) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "WebApplication",
+          "@id": "https://civictax.org/#webapp",
+          "name": "CivicTax",
+          "alternateName": "CivicTax Citizen Tax Allocation & Public Governance Platform",
+          "url": "https://civictax.org/",
+          "applicationCategory": "FinanceApplication, GovernmentApplication",
+          "operatingSystem": "All modern web browsers (Chrome, Safari, Firefox, Edge)",
+          "browserRequirements": "Requires JavaScript",
+          "description": "CivicTax is a transparent civic tech platform that allows citizens to allocate their income tax contributions across national development sectors, view real-time participatory budget analytics, and receive SHA-256 verified impact certificates.",
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "INR"
+          },
+          "featureList": [
+            "Participatory Tax Budget Allocation across 8 National Sectors",
+            "Real-time Global Public Consensus Dashboard with Recharts Analytics",
+            "Multi-Year Historical Tax Filing Ledger with SHA-256 Cryptographic Sealing",
+            "Comparative Benchmarks vs Union Budget Statutory Allocations",
+            "AI-Powered Fiscal Impact & Economic Simulation Engine",
+            "Cryptographically Verified Printable Impact Certificates & Annual Tax Reports",
+            "Citizen Open Data Transparency Ledger with Cloud Persistence"
+          ]
+        },
+        {
+          "@type": "Organization",
+          "@id": "https://civictax.org/#organization",
+          "name": "CivicTax Governance Platform",
+          "url": "https://civictax.org/",
+          "logo": "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=400&h=400&q=80",
+          "sameAs": [
+            "https://twitter.com/CivicTax",
+            "https://github.com/CivicTax"
+          ]
+        },
+        {
+          "@type": "FAQPage",
+          "@id": "https://civictax.org/#faq",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "What is CivicTax participatory tax allocation?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "CivicTax is a civic technology platform that allows taxpayers to simulate and express direct participatory preferences on how their tax money should be deployed across 8 key sectors: Healthcare, Education, Clean Energy, Infrastructure, Agriculture, Science & Technology, Social Welfare, and Defense."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Is my PAN and taxpayer identity secure on CivicTax?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes. Sensitive citizen identifiers are masked and protected using strict client/server encryption. Participatory data published to the public transparency ledger is anonymized and sealed with SHA-256 cryptographic verification hashes."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "How does the CivicTax Global Public Dashboard aggregate citizen allocations?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "The platform aggregates all submitted citizen returns to calculate mean percentage weights per sector, comparing public demand against official Union Budget statutory benchmarks to illustrate public governance priorities."
+              }
+            }
+          ]
+        }
+      ]
+    }
+    </script>
   </head>
-  <body>
+  <body class="bg-[#0A0B0D] text-[#E2E8F0] antialiased selection:bg-emerald-500 selection:text-slate-950 min-h-screen">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
-

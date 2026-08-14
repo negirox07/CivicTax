@@ -65,3 +65,23 @@ export interface PresetAllocation {
   icon: string;
   allocations: SectorAllocations;
 }
+
+export interface CitizenUser {
+  id: string;
+  fullName: string;
+  email: string;
+  panNumber: string;
+  aadhaarNumber?: string;
+  phone?: string;
+  profession?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  avatar?: string;
+  filingCount?: number;
+  totalTaxContributed?: number;
+  dataSharingConsent?: boolean;
+  consentTimestamp?: string;
+  consentVersion?: string;
+  token?: string;
+}

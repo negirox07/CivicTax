@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
 import confetti from 'canvas-confetti';
-import { TaxRecord, SectorAllocations, SectorId } from '../types';
+import { TaxRecord, SectorAllocations, SectorId, CitizenUser } from '../types';
 import { SECTOR_DEFINITIONS, ALL_SECTOR_IDS, PRESET_ALLOCATIONS } from '../data/sectors';
 import { ImpactInsights } from './ImpactInsights';
 import {
@@ -40,6 +40,7 @@ import {
 
 interface TaxFilingFormProps {
   initialData?: TaxRecord | null;
+  currentUser?: CitizenUser | null;
   onSaveRecord: (record: TaxRecord) => void;
   onGoToDashboard: () => void;
   onDownloadPdf: (record: TaxRecord) => void;
@@ -55,24 +56,25 @@ const INDIAN_STATES = [
 
 export const TaxFilingForm: React.FC<TaxFilingFormProps> = ({
   initialData,
+  currentUser,
   onSaveRecord,
   onGoToDashboard,
   onDownloadPdf,
 }) => {
   // Form State
-  const [fullName, setFullName] = useState(initialData?.fullName || '');
+  const [fullName, setFullName] = useState(initialData?.fullName || currentUser?.fullName || '');
   const [age, setAge] = useState<number | ''>(initialData?.age || 30);
-  const [profession, setProfession] = useState(initialData?.profession || 'Software Professional');
+  const [profession, setProfession] = useState(initialData?.profession || currentUser?.profession || 'Software Professional');
   const [annualSalary, setAnnualSalary] = useState<number | ''>(initialData?.annualSalary || 1800000);
   const [taxPaid, setTaxPaid] = useState<number | ''>(initialData?.taxPaid || 250000);
-  const [email, setEmail] = useState(initialData?.email || '');
-  const [phone, setPhone] = useState(initialData?.phone || '');
-  const [panNumber, setPanNumber] = useState(initialData?.panNumber || '');
-  const [aadhaarNumber, setAadhaarNumber] = useState(initialData?.aadhaarNumber || '');
+  const [email, setEmail] = useState(initialData?.email || currentUser?.email || '');
+  const [phone, setPhone] = useState(initialData?.phone || currentUser?.phone || '');
+  const [panNumber, setPanNumber] = useState(initialData?.panNumber || currentUser?.panNumber || '');
+  const [aadhaarNumber, setAadhaarNumber] = useState(initialData?.aadhaarNumber || currentUser?.aadhaarNumber || '');
   const [financialYear, setFinancialYear] = useState(initialData?.financialYear || '2025-26');
-  const [state, setState] = useState(initialData?.state || 'Karnataka');
-  const [city, setCity] = useState(initialData?.city || 'Bengaluru');
-  const [pincode, setPincode] = useState(initialData?.pincode || '560001');
+  const [state, setState] = useState(initialData?.state || currentUser?.state || 'Karnataka');
+  const [city, setCity] = useState(initialData?.city || currentUser?.city || 'Bengaluru');
+  const [pincode, setPincode] = useState(initialData?.pincode || currentUser?.pincode || '560001');
   const [citizenProposal, setCitizenProposal] = useState(initialData?.citizenProposal || '');
 
   // Allocations State (Default to Balanced)
@@ -92,13 +94,14 @@ export const TaxFilingForm: React.FC<TaxFilingFormProps> = ({
   // Active UI Step
   const [activeStep, setActiveStep] = useState<1 | 2 | 3>(1);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [dataSharingConsent, setDataSharingConsent] = useState<boolean>(true);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [aiInsight, setAiInsight] = useState<{ summary: string; keyTakeaways: string[]; civicEmpowermentQuote: string } | null>(
     initialData?.aiImpactSummary || null
   );
   const [submittedRecord, setSubmittedRecord] = useState<TaxRecord | null>(null);
 
-  // Sync with initialData if it changes
+  // Sync with initialData or currentUser if they change
   useEffect(() => {
     if (initialData) {
       setFullName(initialData.fullName);
@@ -117,8 +120,17 @@ export const TaxFilingForm: React.FC<TaxFilingFormProps> = ({
       setCitizenProposal(initialData.citizenProposal || '');
       setAllocations(initialData.allocations);
       setAiInsight(initialData.aiImpactSummary || null);
+    } else if (currentUser) {
+      setFullName(currentUser.fullName || '');
+      setEmail(currentUser.email || '');
+      setPanNumber(currentUser.panNumber || '');
+      if (currentUser.phone) setPhone(currentUser.phone);
+      if (currentUser.profession) setProfession(currentUser.profession);
+      if (currentUser.state) setState(currentUser.state);
+      if (currentUser.city) setCity(currentUser.city);
+      if (currentUser.pincode) setPincode(currentUser.pincode);
     }
-  }, [initialData]);
+  }, [initialData, currentUser]);
 
   // Calculate total percentage allocated
   const totalPercentage: number = (Object.values(allocations) as number[]).reduce((acc: number, val: number): number => acc + (Number(val) || 0), 0);
@@ -1137,6 +1149,41 @@ export const TaxFilingForm: React.FC<TaxFilingFormProps> = ({
                 )}
               </div>
 
+              {/* CITIZEN DATA SHARING & PUBLIC GROWTH CONSENT AGREEMENT */}
+              <div className="mt-8 bg-[#131E32] border border-emerald-500/30 rounded-2xl p-5 space-y-3">
+                <div className="flex items-start gap-3">
+                  <div className="pt-0.5">
+                    <input
+                      id="tax-filing-consent"
+                      type="checkbox"
+                      checked={dataSharingConsent}
+                      onChange={(e) => setDataSharingConsent(e.target.checked)}
+                      className="w-4 h-4 rounded border-emerald-500 text-emerald-500 focus:ring-emerald-500 bg-[#0A0B0D] cursor-pointer accent-emerald-500"
+                    />
+                  </div>
+                  <label htmlFor="tax-filing-consent" className="text-xs text-white leading-relaxed cursor-pointer select-none">
+                    <span className="font-bold text-emerald-400 block mb-0.5">
+                      National Civic Transparency & Public Growth Declaration
+                    </span>
+                    I hereby authorize and consent to share my verified tax allocation preferences to the CivicTax public consensus ledger. I understand that this data will be aggregated anonymously to demonstrate citizen budgetary priorities and support evidence-based public growth.
+                  </label>
+                </div>
+
+                <div className="pt-2 border-t border-[#1E293B] flex items-center justify-between text-[11px] text-[#94A3B8]">
+                  <span className="flex items-center gap-1.5 text-slate-300">
+                    <Lock className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Protected by SHA-256 cryptographic verification receipt</span>
+                  </span>
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                    dataSharingConsent
+                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                      : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                  }`}>
+                    {dataSharingConsent ? '✓ Public Growth Consent Active' : '⚠ Consent Required'}
+                  </span>
+                </div>
+              </div>
+
               {/* Submit / Action Bar */}
               <div className="mt-8 pt-6 border-t border-[#1E293B] flex items-center justify-between flex-wrap gap-4">
                 <button
@@ -1150,10 +1197,11 @@ export const TaxFilingForm: React.FC<TaxFilingFormProps> = ({
                 <div className="flex items-center gap-3">
                   <button
                     type="submit"
-                    className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-8 py-3 rounded-xl shadow-lg shadow-emerald-500/20 transition active:scale-95 text-sm cursor-pointer"
+                    disabled={!dataSharingConsent}
+                    className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-8 py-3 rounded-xl shadow-lg shadow-emerald-500/20 transition active:scale-95 text-sm cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     <CheckCircle2 className="w-4 h-4" />
-                    <span>Save & Confirm Annual Tax Allocation</span>
+                    <span>{dataSharingConsent ? 'Save & Confirm Annual Tax Allocation' : 'Agree to Consent to Submit'}</span>
                   </button>
                 </div>
               </div>
