@@ -1,0 +1,6 @@
+{
+  "name": "CivicTax - Citizen Tax Allocation & Impact Tracker",
+  "description": "A national transparent civic tax allocation and public governance platform featuring a real-time Global Public Dashboard, citizen budget allocation sliders, multi-year historical ledger, AI impact simulations, verified PDF certificates, and Supabase cloud persistence.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
