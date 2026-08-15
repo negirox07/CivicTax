@@ -1,5 +1,5 @@
 import { CitizenUser, TaxRecord } from '../types';
-import { INITIAL_SAMPLE_RECORDS } from '../data/sectors';
+import { getSupabaseClient, isSupabaseConfigured } from './supabaseClient';
 
 const AUTH_STORAGE_KEY = 'civictax_current_user_session';
 const REGISTERED_USERS_KEY = 'civictax_registered_users';
@@ -9,8 +9,6 @@ export const DEMO_CITIZEN_PROFILES: CitizenUser[] = [
     id: 'usr_mukesh',
     fullName: 'Mukesh Singh Negi',
     email: 'mukeshsingh.negi07@gmail.com',
-    panNumber: 'ABCDE1234F',
-    aadhaarNumber: '789456123012',
     phone: '+91 98765 43210',
     profession: 'Senior Software Engineer',
     city: 'Bengaluru',
@@ -18,13 +16,15 @@ export const DEMO_CITIZEN_PROFILES: CitizenUser[] = [
     pincode: '560103',
     filingCount: 3,
     totalTaxContributed: 965000,
+    dataSharingConsent: true,
+    dpdpConsentGranted: true,
+    dpdpNoticeVersion: 'DPDP-ACT-2023-RULES-2025-v1.0',
+    consentTimestamp: '2026-08-01T10:30:00Z',
   },
   {
     id: 'usr_priya',
     fullName: 'Priya Narayanan',
     email: 'priya.narayanan@example.com',
-    panNumber: 'BPLPN5432K',
-    aadhaarNumber: '453218907654',
     phone: '+91 98450 11223',
     profession: 'Clinical Research Associate',
     city: 'Chennai',
@@ -32,13 +32,15 @@ export const DEMO_CITIZEN_PROFILES: CitizenUser[] = [
     pincode: '600028',
     filingCount: 1,
     totalTaxContributed: 225000,
+    dataSharingConsent: true,
+    dpdpConsentGranted: true,
+    dpdpNoticeVersion: 'DPDP-ACT-2023-RULES-2025-v1.0',
+    consentTimestamp: '2026-08-05T14:15:00Z',
   },
   {
     id: 'usr_rahul',
     fullName: 'Rahul Sharma',
     email: 'rahul.sharma@example.com',
-    panNumber: 'AZRPS8876M',
-    aadhaarNumber: '671290345612',
     phone: '+91 97112 33445',
     profession: 'Supply Chain Architect',
     city: 'Mumbai',
@@ -46,13 +48,15 @@ export const DEMO_CITIZEN_PROFILES: CitizenUser[] = [
     pincode: '400050',
     filingCount: 1,
     totalTaxContributed: 610000,
+    dataSharingConsent: true,
+    dpdpConsentGranted: true,
+    dpdpNoticeVersion: 'DPDP-ACT-2023-RULES-2025-v1.0',
+    consentTimestamp: '2026-08-07T11:45:00Z',
   },
   {
     id: 'usr_ananya',
     fullName: 'Dr. Ananya Roy',
     email: 'ananya.roy@example.com',
-    panNumber: 'CKPAR4412Q',
-    aadhaarNumber: '332187654321',
     phone: '+91 94331 99887',
     profession: 'Biotech Scientist & Educator',
     city: 'Kolkata',
@@ -60,13 +64,15 @@ export const DEMO_CITIZEN_PROFILES: CitizenUser[] = [
     pincode: '700019',
     filingCount: 1,
     totalTaxContributed: 490000,
+    dataSharingConsent: true,
+    dpdpConsentGranted: true,
+    dpdpNoticeVersion: 'DPDP-ACT-2023-RULES-2025-v1.0',
+    consentTimestamp: '2026-08-10T16:00:00Z',
   },
   {
     id: 'usr_vikram',
     fullName: 'Vikramaditya Rathore',
     email: 'vikram.rathore@example.com',
-    panNumber: 'DFFVR1098J',
-    aadhaarNumber: '890123456789',
     phone: '+91 98290 55667',
     profession: 'Renewable Infrastructure Consultant',
     city: 'Jaipur',
@@ -74,13 +80,15 @@ export const DEMO_CITIZEN_PROFILES: CitizenUser[] = [
     pincode: '302001',
     filingCount: 1,
     totalTaxContributed: 740000,
+    dataSharingConsent: true,
+    dpdpConsentGranted: true,
+    dpdpNoticeVersion: 'DPDP-ACT-2023-RULES-2025-v1.0',
+    consentTimestamp: '2026-08-12T09:20:00Z',
   },
   {
     id: 'usr_sneha',
     fullName: 'Sneha Kulkarni',
     email: 'sneha.k@example.com',
-    panNumber: 'FGHPS7711N',
-    aadhaarNumber: '567890123456',
     phone: '+91 99220 44332',
     profession: 'UX Designer',
     city: 'Hyderabad',
@@ -88,6 +96,10 @@ export const DEMO_CITIZEN_PROFILES: CitizenUser[] = [
     pincode: '500081',
     filingCount: 1,
     totalTaxContributed: 295000,
+    dataSharingConsent: true,
+    dpdpConsentGranted: true,
+    dpdpNoticeVersion: 'DPDP-ACT-2023-RULES-2025-v1.0',
+    consentTimestamp: '2026-08-14T12:00:00Z',
   },
 ];
 
@@ -138,14 +150,16 @@ export function setStoredCurrentUser(user: CitizenUser | null): void {
 }
 
 /**
- * Log in by Email or PAN Number via backend API
+ * Log in by Email or Mobile Phone via backend API or Supabase citizen_users
  */
 export async function loginCitizen(
-  emailOrPan: string,
+  emailOrPhone: string,
   passwordOrPin?: string
 ): Promise<{ success: boolean; user?: CitizenUser; error?: string }> {
-  const normalized = emailOrPan.trim();
+  const normalized = emailOrPhone.trim();
+  const digitsOnly = normalized.replace(/\D/g, '');
 
+  // 1. Try Backend Express API
   try {
     const res = await fetch('/api/auth/login', {
       method: 'POST',
@@ -166,16 +180,61 @@ export async function loginCitizen(
       return { success: false, error: data.error };
     }
   } catch (backendErr) {
-    console.warn('Backend login endpoint unavailable, trying local fallback:', backendErr);
+    console.warn('Backend login endpoint unavailable, checking Supabase / local:', backendErr);
   }
 
-  // Fallback to local user registry if offline/network issue
+  // 2. Try direct Supabase PostgreSQL citizen_users query if configured
+  if (isSupabaseConfigured()) {
+    try {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        let query = supabase.from('citizen_users').select('*');
+        if (normalized.includes('@')) {
+          query = query.ilike('email', normalized);
+        } else if (digitsOnly.length >= 10) {
+          query = query.ilike('phone', `%${digitsOnly.slice(-10)}%`);
+        } else {
+          query = query.or(`email.ilike.${normalized},phone.ilike.%${normalized}%`);
+        }
+
+        const { data, error } = await query.limit(1).maybeSingle();
+
+        if (!error && data) {
+          const user: CitizenUser = {
+            id: data.id,
+            fullName: data.full_name,
+            email: data.email,
+            phone: data.phone || undefined,
+            profession: data.profession || undefined,
+            city: data.city || 'Bengaluru',
+            state: data.state || 'Karnataka',
+            pincode: data.pincode || '560001',
+            filingCount: data.filing_count || 0,
+            totalTaxContributed: Number(data.total_tax_contributed) || 0,
+            dataSharingConsent: data.data_sharing_consent ?? true,
+            dpdpConsentGranted: data.dpdp_consent_granted ?? true,
+            dpdpNoticeVersion: data.dpdp_notice_version || 'DPDP-ACT-2023-RULES-2025-v1.0',
+            consentTimestamp: data.consent_timestamp,
+            consentVersion: data.consent_version,
+          };
+          setStoredCurrentUser(user);
+          return { success: true, user };
+        }
+      }
+    } catch (supaErr) {
+      console.warn('Direct Supabase citizen_users query warning:', supaErr);
+    }
+  }
+
+  // 3. Fallback to local user registry if offline/network issue
   const allUsers = getRegisteredUsers();
-  const found = allUsers.find(
-    (u) =>
-      u.email.toLowerCase() === normalized.toLowerCase() ||
-      u.panNumber.toLowerCase() === normalized.toLowerCase()
-  );
+  const found = allUsers.find((u) => {
+    const uEmail = u.email.toLowerCase();
+    const uPhoneDigits = (u.phone || '').replace(/\D/g, '');
+    const matchEmail = uEmail === normalized.toLowerCase();
+    const matchPhone = digitsOnly.length >= 10 && uPhoneDigits.endsWith(digitsOnly.slice(-10));
+    return matchEmail || matchPhone;
+  });
 
   if (found) {
     setStoredCurrentUser(found);
@@ -184,12 +243,12 @@ export async function loginCitizen(
 
   return {
     success: false,
-    error: 'Citizen account not found. Please verify your Email/PAN or register a new profile.',
+    error: 'Participant profile not found. Please verify your Email or Phone number, or register a new participant profile under DPDP Act rules.',
   };
 }
 
 /**
- * Register a new citizen account via backend API with mandatory consent
+ * Register a new citizen account via backend API with mandatory DPDP Act 2023 consent
  */
 export async function registerCitizen(
   userData: Partial<CitizenUser> & {
@@ -197,36 +256,38 @@ export async function registerCitizen(
     termsAccepted?: boolean;
     dataSharingConsent: boolean;
     accuracyDeclaration?: boolean;
+    dpdpConsentGranted?: boolean;
   }
 ): Promise<{ success: boolean; user?: CitizenUser; error?: string }> {
-  if (!userData.fullName || !userData.email || !userData.panNumber) {
-    return { success: false, error: 'Full Name, Email, and PAN Number are mandatory.' };
+  if (!userData.fullName || !userData.email) {
+    return { success: false, error: 'Full Name and Email address are mandatory.' };
   }
 
   if (userData.termsAccepted !== true) {
     return {
       success: false,
-      error: 'You must agree to the CivicTax Terms of Service & Privacy Policy.',
+      error: 'You must review and accept the DPDP Act 2023 Notice & Survey Terms.',
     };
   }
 
   if (userData.dataSharingConsent !== true) {
     return {
       success: false,
-      error: 'You must provide consent to share anonymized tax allocation data for national public transparency and civic growth.',
+      error: 'You must provide consent to process anonymized budget preference data for civic opinion research under Section 6 of DPDP Act 2023.',
     };
   }
 
   if (userData.accuracyDeclaration !== true) {
     return {
       success: false,
-      error: 'You must declare that all provided taxpayer identification and income information is accurate.',
+      error: 'You must declare that the demographic and civic opinion information provided is genuine.',
     };
   }
 
-  const panClean = userData.panNumber.trim().toUpperCase();
   const emailClean = userData.email.trim().toLowerCase();
+  const phoneClean = (userData.phone || '').trim();
 
+  // 1. Try Backend Express API
   try {
     const res = await fetch('/api/auth/register', {
       method: 'POST',
@@ -234,16 +295,16 @@ export async function registerCitizen(
       body: JSON.stringify({
         fullName: userData.fullName.trim(),
         email: emailClean,
-        panNumber: panClean,
+        phone: phoneClean,
         password: userData.password || '1234',
-        aadhaarNumber: userData.aadhaarNumber,
-        phone: userData.phone,
-        profession: userData.profession || 'Taxpayer Contributor',
+        profession: userData.profession || 'Civic Participant',
         city: userData.city || 'Bengaluru',
         state: userData.state || 'Karnataka',
         pincode: userData.pincode || '560001',
         termsAccepted: true,
         dataSharingConsent: true,
+        dpdpConsentGranted: true,
+        dpdpNoticeVersion: 'DPDP-ACT-2023-RULES-2025-v1.0',
         accuracyDeclaration: true,
       }),
     });
@@ -258,27 +319,57 @@ export async function registerCitizen(
       return { success: false, error: data.error };
     }
   } catch (backendErr) {
-    console.warn('Backend registration endpoint unavailable, storing locally:', backendErr);
+    console.warn('Backend registration endpoint unavailable, writing to Supabase / local:', backendErr);
   }
 
-  // Local fallback
+  // 2. Write to Supabase citizen_users directly if configured
+  const newUserId = `usr_${Date.now()}`;
+  if (isSupabaseConfigured()) {
+    try {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        await supabase.from('citizen_users').insert({
+          id: newUserId,
+          full_name: userData.fullName.trim(),
+          email: emailClean,
+          phone: phoneClean || null,
+          password_hash: userData.password || '1234',
+          profession: userData.profession || 'Civic Participant',
+          city: userData.city || 'Bengaluru',
+          state: userData.state || 'Karnataka',
+          pincode: userData.pincode || '560001',
+          filing_count: 0,
+          total_tax_contributed: 0,
+          data_sharing_consent: true,
+          dpdp_consent_granted: true,
+          dpdp_notice_version: 'DPDP-ACT-2023-RULES-2025-v1.0',
+          terms_accepted: true,
+          accuracy_declaration: true,
+        });
+      }
+    } catch (supaErr) {
+      console.warn('Direct Supabase citizen_users insert warning:', supaErr);
+    }
+  }
+
+  // 3. Local fallback persistence
   const allUsers = getRegisteredUsers();
   const newUser: CitizenUser = {
-    id: `usr_${Date.now()}`,
+    id: newUserId,
     fullName: userData.fullName.trim(),
     email: emailClean,
-    panNumber: panClean,
-    aadhaarNumber: userData.aadhaarNumber || '',
-    phone: userData.phone || '',
-    profession: userData.profession || 'Taxpayer Contributor',
+    phone: phoneClean,
+    profession: userData.profession || 'Civic Participant',
     city: userData.city || 'Bengaluru',
     state: userData.state || 'Karnataka',
     pincode: userData.pincode || '560001',
     filingCount: 0,
     totalTaxContributed: 0,
     dataSharingConsent: true,
+    dpdpConsentGranted: true,
+    dpdpNoticeVersion: 'DPDP-ACT-2023-RULES-2025-v1.0',
     consentTimestamp: new Date().toISOString(),
-    consentVersion: 'v1.0-public-growth',
+    consentVersion: 'DPDP-2023-v1.0',
   };
 
   const updated = [...allUsers, newUser];
@@ -289,7 +380,7 @@ export async function registerCitizen(
 }
 
 /**
- * Update citizen consent on backend
+ * Update citizen consent on backend (DPDP Consent Management)
  */
 export async function updateCitizenConsent(
   user: CitizenUser,
@@ -306,7 +397,7 @@ export async function updateCitizenConsent(
         userId: user.id,
         email: user.email,
         consentGiven,
-        consentVersion: 'v1.0-public-growth',
+        consentVersion: 'DPDP-ACT-2023-RULES-2025-v1.0',
       }),
     });
 
@@ -323,6 +414,7 @@ export async function updateCitizenConsent(
   const updatedUser: CitizenUser = {
     ...user,
     dataSharingConsent: consentGiven,
+    dpdpConsentGranted: consentGiven,
     consentTimestamp: new Date().toISOString(),
   };
   setStoredCurrentUser(updatedUser);
@@ -330,7 +422,7 @@ export async function updateCitizenConsent(
 }
 
 /**
- * Filter all records for a specific citizen user
+ * Filter all survey records for a specific citizen user
  */
 export function filterRecordsForCitizen(
   allRecords: TaxRecord[],
@@ -339,15 +431,15 @@ export function filterRecordsForCitizen(
   if (!user) return [];
 
   const userEmail = (user.email || '').trim().toLowerCase();
-  const userPan = (user.panNumber || '').trim().toUpperCase();
+  const userPhoneDigits = (user.phone || '').replace(/\D/g, '');
 
   return allRecords.filter((rec) => {
     const recEmail = (rec.email || '').trim().toLowerCase();
-    const recPan = (rec.panNumber || '').trim().toUpperCase();
+    const recPhoneDigits = (rec.phone || '').replace(/\D/g, '');
 
     return (
       (userEmail && recEmail === userEmail) ||
-      (userPan && recPan === userPan) ||
+      (userPhoneDigits.length >= 10 && recPhoneDigits.endsWith(userPhoneDigits.slice(-10))) ||
       (rec.fullName.toLowerCase() === user.fullName.toLowerCase())
     );
   });

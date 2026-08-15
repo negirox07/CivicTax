@@ -1,7 +1,7 @@
 import jsPDF from 'jspdf';
 import { TaxRecord } from '../types';
 import { SECTOR_DEFINITIONS, ALL_SECTOR_IDS } from '../data/sectors';
-import { formatCurrencyINR, maskPAN, maskAadhaar } from './formatters';
+import { formatCurrencyINR } from './formatters';
 
 export async function generateTaxCertificatePdf(record: TaxRecord): Promise<void> {
   const doc = new jsPDF({
@@ -35,25 +35,25 @@ export async function generateTaxCertificatePdf(record: TaxRecord): Promise<void
   // Header Title
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(12.5);
-  doc.text('NATIONAL CITIZEN TAX ALLOCATION & CIVIC REPORT', pageWidth / 2, headerY + 8, { align: 'center' });
+  doc.setFontSize(12);
+  doc.text('CIVICTAX CITIZEN TAX ALLOCATION & PARTICIPATORY REPORT', pageWidth / 2, headerY + 8, { align: 'center' });
 
   // Header Subtitle
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.5);
+  doc.setFontSize(7.2);
   doc.setTextColor(203, 213, 225); // Slate 300
-  doc.text('PUBLIC TRANSPARENCY & CITIZEN-DIRECTED PARTICIPATORY BUDGET INITIATIVE', pageWidth / 2, headerY + 14, { align: 'center' });
+  doc.text('INDEPENDENT CIVIC TECHNOLOGY PLATFORM • NON-GOVERNMENTAL RESEARCH INITIATIVE', pageWidth / 2, headerY + 14, { align: 'center' });
 
   // Header Metadata Line
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.2);
   doc.setTextColor(52, 211, 153); // Emerald 400
-  const headerMeta = `ASSESSMENT YEAR: FY ${record.financialYear}   |   STATUS: VERIFIED & COMMITTED   |   CODE: ${record.verificationHash}`;
+  const headerMeta = `ASSESSMENT YEAR: FY ${record.financialYear}   |   DPDP ACT 2023 COMPLIANT   |   CODE: ${record.verificationHash}`;
   doc.text(headerMeta, pageWidth / 2, headerY + 20, { align: 'center' });
 
   let y = headerY + headerHeight + 3; // ~42 mm
 
-  // 3. Section 1: Citizen Identification Card
+  // 3. Section 1: Participant Profile Card (DPDP Compliant - Email & Phone)
   const sec1Height = 31;
   doc.setFillColor(248, 250, 252);
   doc.setDrawColor(226, 232, 240);
@@ -64,13 +64,13 @@ export async function generateTaxCertificatePdf(record: TaxRecord): Promise<void
   doc.setTextColor(15, 23, 42);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8.5);
-  doc.text('1. CITIZEN TAXPAYER IDENTIFICATION & FISCAL PROFILE', boxX + 4, y + 5.5);
+  doc.text('1. CITIZEN PARTICIPANT IDENTIFICATION & FISCAL PROFILE', boxX + 4, y + 5.5);
 
   // Left Column Details (X: boxX + 4)
   const col1LabelX = boxX + 4;
   const col1ValX = boxX + 24;
   const col2LabelX = boxX + 70;
-  const col2ValX = boxX + 93;
+  const col2ValX = boxX + 91;
 
   doc.setFontSize(7.2);
 
@@ -85,10 +85,11 @@ export async function generateTaxCertificatePdf(record: TaxRecord): Promise<void
 
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(100, 116, 139);
-  doc.text('Masked PAN:', col2LabelX, y + 12);
+  doc.text('Contact Email:', col2LabelX, y + 12);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(15, 23, 42);
-  doc.text(maskPAN(record.panNumber), col2ValX, y + 12);
+  const cleanEmail = record.email?.length > 22 ? record.email.slice(0, 20) + '..' : (record.email || 'N/A');
+  doc.text(cleanEmail, col2ValX, y + 12);
 
   // Row 2
   doc.setFont('helvetica', 'normal');
@@ -102,10 +103,10 @@ export async function generateTaxCertificatePdf(record: TaxRecord): Promise<void
 
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(100, 116, 139);
-  doc.text('Masked UID:', col2LabelX, y + 18);
+  doc.text('Phone / Mobile:', col2LabelX, y + 18);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(15, 23, 42);
-  doc.text(maskAadhaar(record.aadhaarNumber), col2ValX, y + 18);
+  doc.text(record.phone || 'Not Provided', col2ValX, y + 18);
 
   // Row 3
   doc.setFont('helvetica', 'normal');
@@ -119,7 +120,7 @@ export async function generateTaxCertificatePdf(record: TaxRecord): Promise<void
 
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(100, 116, 139);
-  doc.text('Filing Date:', col2LabelX, y + 24);
+  doc.text('Survey Date:', col2LabelX, y + 24);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(15, 23, 42);
   const filingDateStr = new Date(record.submissionDate || Date.now()).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -161,12 +162,11 @@ export async function generateTaxCertificatePdf(record: TaxRecord): Promise<void
   y += 6.5;
 
   // Table Column Coordinates
-  // boxX is ~13.5 mm, boxWidth is 183 mm, right edge is ~196.5 mm
-  const colSectorX = boxX + 4;       // 17.5 mm (left aligned)
-  const colPrefCenterX = boxX + 76;   // 89.5 mm (center aligned)
-  const colAmountRightX = boxX + 116; // 129.5 mm (right aligned)
-  const colBenchCenterX = boxX + 138; // 151.5 mm (center aligned)
-  const colImpactRightX = boxX + 180; // 193.5 mm (right aligned)
+  const colSectorX = boxX + 4;       // left aligned
+  const colPrefCenterX = boxX + 76;   // center aligned
+  const colAmountRightX = boxX + 116; // right aligned
+  const colBenchCenterX = boxX + 138; // center aligned
+  const colImpactRightX = boxX + 180; // right aligned
 
   // Table Header Row
   const headerRowH = 6.2;
@@ -202,11 +202,10 @@ export async function generateTaxCertificatePdf(record: TaxRecord): Promise<void
     }
     doc.rect(boxX, y, boxWidth, rowHeight, 'F');
 
-    // 1. Sector Name (cleanly bounded)
+    // 1. Sector Name
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(7);
     doc.setTextColor(15, 23, 42);
-    // Truncate sector name safely if very long to prevent any column bleeding
     const sectorName = sec.name.length > 30 ? sec.shortName : sec.name;
     doc.text(sectorName, colSectorX, y + 4.1);
 
@@ -232,11 +231,10 @@ export async function generateTaxCertificatePdf(record: TaxRecord): Promise<void
     doc.setTextColor(100, 116, 139);
     doc.text(`${sec.benchmarkPct}% (Govt)`, colBenchCenterX, y + 4.1, { align: 'center' });
 
-    // 5. Tangible Output (Right-aligned, safely truncated)
+    // 5. Tangible Output (Right-aligned)
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(6.3);
     doc.setTextColor(29, 78, 216); // Blue 700
-    // Clean label truncation so it never bleeds into previous column
     const unitLabel = sec.tangibleUnit.label.length > 22 ? sec.tangibleUnit.label.slice(0, 20) + '..' : sec.tangibleUnit.label;
     const impactText = `${unitsPurchased.toLocaleString()} ${unitLabel}`;
     doc.text(impactText, colImpactRightX, y + 4.1, { align: 'right' });
@@ -261,27 +259,24 @@ export async function generateTaxCertificatePdf(record: TaxRecord): Promise<void
   doc.text(formatCurrencyINR(totalTax), colAmountRightX, y + 3.8, { align: 'right' });
   doc.setTextColor(100, 116, 139);
   doc.setFont('helvetica', 'normal');
-  doc.text('100% Statutory Reconciled', colImpactRightX, y + 3.8, { align: 'right' });
+  doc.text('100% Survey Reconciled', colImpactRightX, y + 3.8, { align: 'right' });
 
   y += summaryRowH + 3.5; // ~140 mm
 
-  // 5. Section 3: AI / Policy Impact Statement & Citizen Proposal (Dynamic Safe Spacing)
-  const defaultImpact = `Your direct contribution of ${formatCurrencyINR(record.taxPaid)} creates quantifiable civic progress in regional infrastructure, quality public healthcare clinics, modern road transit, and educational technology.`;
+  // 5. Section 3: AI / Policy Impact Statement & Citizen Proposal
+  const defaultImpact = `Your direct contribution of ${formatCurrencyINR(record.taxPaid)} creates quantifiable civic progress in regional infrastructure, public healthcare clinics, modern road transit, and educational technology.`;
   const impactSummaryText = record.aiImpactSummary?.summary || defaultImpact;
 
   doc.setFontSize(7.2);
   doc.setFont('helvetica', 'normal');
-  // Maximum text width is boxWidth - 10 mm (~173 mm)
   const splitImpactLines: string[] = doc.splitTextToSize(impactSummaryText, boxWidth - 10);
 
   let splitProposalLines: string[] = [];
   if (record.citizenProposal) {
     const proposalClean = `"${record.citizenProposal}"`;
-    // Leave room for the 'Citizen Proposal:' prefix (38 mm)
     splitProposalLines = doc.splitTextToSize(proposalClean, boxWidth - 48);
   }
 
-  // Calculate required height with proper padding
   const impactTextH = splitImpactLines.length * 3.4;
   const proposalTextH = record.citizenProposal ? (Math.max(1, splitProposalLines.length) * 3.4 + 4) : 0;
   const sec3Height = Math.max(22, 9 + impactTextH + proposalTextH + 3);
@@ -326,7 +321,7 @@ export async function generateTaxCertificatePdf(record: TaxRecord): Promise<void
 
   y += sec3Height + 3.5;
 
-  // 6. Section 4: Tangible Key Public Assets Breakdown (If Takeaways exist)
+  // 6. Section 4: Key Civic Deliverables
   if (record.aiImpactSummary?.keyTakeaways && record.aiImpactSummary.keyTakeaways.length > 0) {
     const takeaways = record.aiImpactSummary.keyTakeaways.slice(0, 3);
     const sec4Height = 8 + (takeaways.length * 4);
@@ -353,18 +348,18 @@ export async function generateTaxCertificatePdf(record: TaxRecord): Promise<void
     y += sec4Height + 3.5;
   }
 
-  // 7. Section 5: Official Verification Seal & Anti-Tamper Block
-  const sec5Height = 22;
+  // 7. Section 5: Verification & DPDP Act Compliance Seal
+  const sec5Height = 24;
   doc.setFillColor(248, 250, 252); // Slate 50
   doc.setDrawColor(203, 213, 225); // Slate 300
   doc.setLineWidth(0.3);
   doc.roundedRect(boxX, y, boxWidth, sec5Height, 1.5, 1.5, 'FD');
 
-  // Official Stamp Box Simulation (Left side)
+  // Stamp Box Simulation (Left side)
   const stampX = boxX + 4;
   const stampY = y + 3;
   const stampW = 36;
-  const stampH = 16;
+  const stampH = 18;
   doc.setDrawColor(5, 150, 105); // Emerald 600
   doc.setLineWidth(0.6);
   doc.rect(stampX, stampY, stampW, stampH);
@@ -372,13 +367,13 @@ export async function generateTaxCertificatePdf(record: TaxRecord): Promise<void
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(6.2);
   doc.setTextColor(5, 150, 105);
-  doc.text('REPUBLIC CIVIC PORTAL', stampX + stampW / 2, stampY + 4.8, { align: 'center' });
+  doc.text('CIVICTAX INITIATIVE', stampX + stampW / 2, stampY + 4.8, { align: 'center' });
   doc.setFontSize(7.5);
   doc.setTextColor(15, 23, 42);
-  doc.text('VERIFIED RETURN', stampX + stampW / 2, stampY + 9.2, { align: 'center' });
-  doc.setFontSize(5.5);
+  doc.text('CIVIC RECEIPT', stampX + stampW / 2, stampY + 9.5, { align: 'center' });
+  doc.setFontSize(5.2);
   doc.setTextColor(100, 116, 139);
-  doc.text('CITIZEN DEMOCRATIC VOICE', stampX + stampW / 2, stampY + 13.5, { align: 'center' });
+  doc.text('INDEPENDENT PLATFORM', stampX + stampW / 2, stampY + 14, { align: 'center' });
 
   // Verification Details Text (Right of Stamp)
   const verifTextX = stampX + stampW + 6;
@@ -387,26 +382,26 @@ export async function generateTaxCertificatePdf(record: TaxRecord): Promise<void
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.2);
   doc.setTextColor(15, 23, 42);
-  doc.text('Official Participatory Budgeting & Citizen Civic Contribution Certificate', verifTextX, y + 6.5);
+  doc.text('Independent Participatory Budgeting & Citizen Civic Contribution Receipt', verifTextX, y + 5.5);
 
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(6.8);
+  doc.setFontSize(6.2);
   doc.setTextColor(71, 85, 105);
-  const certDesc = 'This digitally verifiable document records the citizen’s fiscal tax contribution and signals participatory budget preferences to municipal and central planning authorities.';
+  const certDesc = 'DISCLAIMER: CivicTax is an independent, non-governmental civic tech platform not affiliated with or endorsed by the Government of India or the Income Tax Department. This receipt models citizen budget priorities for civic policy research and does not replace official tax filings (ITR).';
   const splitCertDesc = doc.splitTextToSize(certDesc, verifMaxW);
-  doc.text(splitCertDesc, verifTextX, y + 11.5);
+  doc.text(splitCertDesc, verifTextX, y + 10);
 
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(6.8);
+  doc.setFontSize(6.5);
   doc.setTextColor(5, 150, 105);
-  doc.text(`Digital Hash: ${record.verificationHash}   •   Tamper-Evident Open Civic Ledger`, verifTextX, y + 18.5);
+  doc.text(`Digital Hash: ${record.verificationHash}   •   Tamper-Evident Open Civic Ledger`, verifTextX, y + 20.5);
 
   // 8. Footer (Bottom of Page)
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(6.5);
+  doc.setFontSize(6.2);
   doc.setTextColor(148, 163, 184); // Slate 400
   const footerDate = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-  doc.text(`CivicTax Open Governance Initiative • Public Transparency Report • Generated on ${footerDate}`, pageWidth / 2, pageHeight - margin - 2, { align: 'center' });
+  doc.text(`CivicTax Independent Civic Platform (Non-Governmental) • DPDP Act 2023 Compliant • Generated on ${footerDate}`, pageWidth / 2, pageHeight - margin - 2, { align: 'center' });
 
   // Save the PDF with a clean sanitized filename
   const cleanName = (record.fullName || 'Citizen').replace(/[^a-zA-Z0-9]/g, '_');

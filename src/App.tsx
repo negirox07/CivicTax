@@ -7,10 +7,14 @@ import { PdfReportsView } from './components/PdfReportsView';
 import { CivicTransparencyView } from './components/CivicTransparencyView';
 import { AboutUsView } from './components/AboutUsView';
 import { PrivacyPolicyView } from './components/PrivacyPolicyView';
+import { DPDPComplianceCenterView } from './components/DPDPComplianceCenterView';
 import { CertificateModal } from './components/CertificateModal';
 import { AuthModal } from './components/AuthModal';
 import { AuthGate } from './components/AuthGate';
 import { SupabaseSetupModal } from './components/SupabaseSetupModal';
+import { CookieConsentBanner } from './components/CookieConsentBanner';
+import { SurveyTermsModal } from './components/SurveyTermsModal';
+import { AccountPrivacyModal, PrivacyTab } from './components/AccountPrivacyModal';
 import { TaxRecord, CitizenUser } from './types';
 import {
   fetchAllTaxRecords,
@@ -24,7 +28,7 @@ import {
   setStoredCurrentUser,
   filterRecordsForCitizen,
 } from './utils/authService';
-import { Landmark, ShieldCheck, Mail, Github, HeartHandshake } from 'lucide-react';
+import { Landmark, ShieldCheck, Mail, Github, HeartHandshake, Ban, Trash2, Sliders, Download } from 'lucide-react';
 
 export default function App() {
   const [records, setRecords] = useState<TaxRecord[]>([]);
@@ -42,6 +46,18 @@ export default function App() {
 
   // Supabase Setup & Schema Modal state
   const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState<boolean>(false);
+
+  // Survey & DPDP Terms Modal state
+  const [isSurveyTermsModalOpen, setIsSurveyTermsModalOpen] = useState<boolean>(false);
+
+  // Account Privacy & Consent Modal state (DPDP Sec 6(4), 11, 12)
+  const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState<boolean>(false);
+  const [privacyModalInitialTab, setPrivacyModalInitialTab] = useState<PrivacyTab>('withdraw');
+
+  const handleOpenPrivacyModal = (tab: PrivacyTab = 'withdraw') => {
+    setPrivacyModalInitialTab(tab);
+    setIsPrivacyModalOpen(true);
+  };
 
   // Load records from Supabase (or local fallback)
   const loadData = useCallback(async () => {
@@ -76,13 +92,13 @@ export default function App() {
         id: `usr_${Date.now()}`,
         fullName: record.fullName,
         email: record.email,
-        panNumber: record.panNumber,
-        aadhaarNumber: record.aadhaarNumber,
         phone: record.phone,
         profession: record.profession,
         state: record.state,
         city: record.city,
         pincode: record.pincode,
+        dpdpConsentGranted: true,
+        dpdpNoticeVersion: 'DPDP-ACT-2023-RULES-2025-v1.0',
       };
       setCurrentUser(citizenUser);
       setStoredCurrentUser(citizenUser);
@@ -176,6 +192,7 @@ export default function App() {
         onResetData={handleResetData}
         onNewFiling={handleNewFiling}
         onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
+        onOpenPrivacyModal={handleOpenPrivacyModal}
         dataSource={dataSource}
       />
 
@@ -244,6 +261,8 @@ export default function App() {
               onDownloadPdf={handleDownloadPdf}
               onNewFiling={handleNewFiling}
               onViewCertModal={(rec) => setInspectedRecord(rec)}
+              onOpenPrivacyModal={handleOpenPrivacyModal}
+              onGoToComplianceCenter={() => setActiveTab('compliance')}
             />
           ) : (
             <AuthGate
@@ -283,11 +302,38 @@ export default function App() {
           />
         )}
 
+        {/* DPDP COMPLIANCE CENTER & CITIZEN DATA RIGHTS (PUBLIC - VISIBLE TO ALL) */}
+        {activeTab === 'compliance' && (
+          <DPDPComplianceCenterView
+            currentUser={currentUser}
+            userRecords={userRecords}
+            allRecords={records}
+            onOpenAuthModal={() =>
+              handleOpenAuthModal(
+                'login',
+                'Sign in to review your personal data ledger and exercise data principal rights.'
+              )
+            }
+            onGoToFiling={handleNewFiling}
+            onGoToGlobalDashboard={() => setActiveTab('global')}
+            onRecordsDeleted={(remaining) => {
+              setRecords(remaining);
+              setEditingRecord(null);
+            }}
+            onUserLoggedOut={() => {
+              setCurrentUser(null);
+              setStoredCurrentUser(null);
+            }}
+            onOpenPrivacyModal={handleOpenPrivacyModal}
+          />
+        )}
+
         {/* PRIVACY POLICY & DATA GOVERNANCE VIEW (PUBLIC - VISIBLE TO ALL) */}
         {activeTab === 'privacy' && (
           <PrivacyPolicyView
             onStartFiling={handleNewFiling}
             onGoToGlobalDashboard={() => setActiveTab('global')}
+            onGoToComplianceCenter={() => setActiveTab('compliance')}
           />
         )}
       </main>
@@ -316,6 +362,40 @@ export default function App() {
         }}
       />
 
+      {/* Survey Terms & Cookie Consent Modal */}
+      <SurveyTermsModal
+        isOpen={isSurveyTermsModalOpen}
+        onClose={() => setIsSurveyTermsModalOpen(false)}
+        onAccept={() => setIsSurveyTermsModalOpen(false)}
+      />
+
+      {/* Account > Privacy Modal (DPDP Act 2023 Sec 6(4), 11, 12) */}
+      <AccountPrivacyModal
+        isOpen={isPrivacyModalOpen}
+        onClose={() => setIsPrivacyModalOpen(false)}
+        currentUser={currentUser}
+        userRecords={userRecords}
+        allRecords={records}
+        initialTab={privacyModalInitialTab}
+        onRecordsDeleted={(remaining) => {
+          setRecords(remaining);
+          setEditingRecord(null);
+        }}
+        onUserLoggedOut={() => {
+          setCurrentUser(null);
+          setStoredCurrentUser(null);
+        }}
+        onGoToComplianceCenter={() => {
+          setIsPrivacyModalOpen(false);
+          setActiveTab('compliance');
+        }}
+      />
+
+      {/* Persistent Bottom Cookie & Survey Consent Banner */}
+      <CookieConsentBanner
+        onOpenFullTerms={() => setIsSurveyTermsModalOpen(true)}
+      />
+
       {/* Footer */}
       <footer className="bg-[#0F172A] text-[#94A3B8] border-t border-[#1E293B] py-8 px-4 sm:px-6 lg:px-8 mt-12 text-xs" id="app-footer">
         <div className="max-w-7xl mx-auto space-y-6">
@@ -323,18 +403,49 @@ export default function App() {
             <div className="flex items-center gap-2 text-[#94A3B8]">
               <Landmark className="w-4 h-4 text-emerald-400" />
               <span className="font-bold text-[#E2E8F0]">CivicTax</span>
-              <span className="hidden sm:inline">— National Citizen-Directed Tax Transparency Ledger & Participatory Budget Platform</span>
+              <span className="hidden sm:inline">— Independent Citizen Tax Allocation & Participatory Budgeting Platform</span>
             </div>
 
             <div className="flex items-center gap-4 text-xs flex-wrap justify-center">
               <button
                 type="button"
-                onClick={() => setActiveTab('about')}
-                className={`transition hover:text-emerald-400 cursor-pointer ${
-                  activeTab === 'about' ? 'text-emerald-400 font-bold underline underline-offset-4' : 'text-[#94A3B8]'
-                }`}
+                onClick={() => handleOpenPrivacyModal('withdraw')}
+                className="transition text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1 cursor-pointer bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-1 rounded-lg border border-amber-500/30"
+                title="Withdraw Consent (DPDP Act Sec 6(4))"
               >
-                About Us
+                <Ban className="w-3.5 h-3.5" />
+                <span>Withdraw Consent</span>
+              </button>
+              <span>•</span>
+              <button
+                type="button"
+                onClick={() => handleOpenPrivacyModal('delete')}
+                className="transition text-rose-400 hover:text-rose-300 font-semibold flex items-center gap-1 cursor-pointer"
+                title="Delete My Data (Right to Erasure)"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Delete My Data</span>
+              </button>
+              <span>•</span>
+              <button
+                type="button"
+                onClick={() => setIsSurveyTermsModalOpen(true)}
+                className="transition text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1 cursor-pointer"
+                title="View Survey Terms & Manage Cookie Preferences"
+              >
+                <span>🍪 Cookie Terms</span>
+              </button>
+              <span>•</span>
+              <button
+                type="button"
+                onClick={() => setActiveTab('compliance')}
+                className={`transition hover:text-emerald-400 font-semibold flex items-center gap-1 cursor-pointer ${
+                  activeTab === 'compliance' ? 'text-emerald-400 font-bold underline underline-offset-4' : 'text-emerald-400/90'
+                }`}
+                title="Open DPDP Compliance Center (Data Inventory & Erasure Rights)"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                <span>DPDP Center</span>
               </button>
               <span>•</span>
               <button
@@ -369,7 +480,23 @@ export default function App() {
             </div>
           </div>
 
-          <div className="pt-4 border-t border-[#1E293B] flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] text-[#64748B]">
+          {/* Statutory Non-Governmental Platform Disclaimer Box */}
+          <div className="bg-[#0A0B0D] border border-[#1E293B] rounded-2xl p-4 sm:p-5 text-left space-y-2">
+            <div className="flex items-center gap-2 text-slate-300 font-semibold text-xs flex-wrap">
+              <span className="bg-slate-800 text-slate-300 px-2.5 py-0.5 rounded-full font-mono text-[10px] border border-slate-700">
+                Independent Civic Technology Platform
+              </span>
+              <span className="text-[#64748B]">•</span>
+              <span className="text-amber-400/90 font-medium text-[11px]">
+                Not a Government Website
+              </span>
+            </div>
+            <p className="text-[11px] text-[#94A3B8] leading-relaxed">
+              <strong>Statutory Disclosure & Non-Affiliation Notice:</strong> This platform is independently operated and is not affiliated with, authorized by, or endorsed by the Government of India, the Ministry of Finance, the Income Tax Department, Central Board of Direct Taxes (CBDT), any State Government, Municipal Corporation, or statutory tax authority. This website is an independent civic research and participatory budgeting simulation tool. It does not collect official taxes, file statutory Income Tax Returns (ITR), or provide legal or tax advice. All survey data is used strictly for civic policy insights, public consensus modeling, and educational research.
+            </p>
+          </div>
+
+          <div className="pt-2 border-t border-[#1E293B] flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] text-[#64748B]">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="flex items-center gap-1 text-emerald-400 font-medium">
                 <ShieldCheck className="w-3.5 h-3.5" />

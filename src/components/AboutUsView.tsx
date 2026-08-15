@@ -102,7 +102,7 @@ export const AboutUsView: React.FC<AboutUsViewProps> = ({
         <div className="relative z-10 max-w-3xl space-y-4">
           <div className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/25 px-3.5 py-1.5 rounded-full text-emerald-400 text-xs font-bold uppercase tracking-wider">
             <Landmark className="w-4 h-4" />
-            <span>CivicTech & Democratic Governance Platform</span>
+            <span>Independent Civic Technology Initiative</span>
           </div>
 
           <h1 className="text-3xl sm:text-5xl font-bold font-serif text-white tracking-tight leading-tight">
@@ -110,8 +110,19 @@ export const AboutUsView: React.FC<AboutUsViewProps> = ({
           </h1>
 
           <p className="text-sm sm:text-base text-[#94A3B8] leading-relaxed">
-            CivicTax was created to transform taxation from a passive annual obligation into an active, transparent civic voice. By combining modern web technology, cryptographic hash verification, and open consensus metrics, CivicTax enables every citizen to direct national budget priorities and witness collective economic impact.
+            CivicTax is an independent, non-governmental civic technology platform designed to transform taxation discussions into an active, transparent civic voice. By combining modern web engineering, cryptographic hash verification, and open consensus metrics, CivicTax enables citizens to simulate budget allocations, model civic impact, and compare citizen priorities against statutory benchmarks.
           </p>
+
+          {/* Explicit Non-Governmental Platform Disclaimer */}
+          <div className="bg-[#0A0B0D]/90 border border-amber-500/30 rounded-2xl p-4 text-xs text-amber-200/90 leading-relaxed space-y-1">
+            <div className="flex items-center gap-2 font-bold text-amber-300">
+              <ShieldCheck className="w-4 h-4 text-amber-400" />
+              <span>Independent Platform Notice</span>
+            </div>
+            <p className="text-[#94A3B8] text-[12px]">
+              This platform is independently operated and is not affiliated with, authorized by, or endorsed by the Government of India, the Ministry of Finance, the Income Tax Department, Central Board of Direct Taxes (CBDT), any state government, municipal corporation, or statutory tax authority. CivicTax does not collect taxes or file official Income Tax Returns.
+            </p>
+          </div>
 
           <div className="flex items-center gap-3 pt-2 flex-wrap">
             <button

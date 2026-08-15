@@ -46,7 +46,7 @@ import {
 } from 'recharts';
 import { TaxRecord, SectorId, CitizenUser } from '../types';
 import { SECTOR_DEFINITIONS } from '../data/sectors';
-import { formatCurrencyINR, formatCompactINR, maskPAN } from '../utils/formatters';
+import { formatCurrencyINR, formatCompactINR } from '../utils/formatters';
 import {
   calculateGlobalPublicStats,
   GlobalPublicStats,
@@ -232,8 +232,8 @@ export const GlobalDashboardView: React.FC<GlobalDashboardViewProps> = ({
                     <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1">
                       <CheckCircle2 className="w-3 h-3" /> Signed In Citizen
                     </span>
-                    <span className="text-[10px] font-mono text-slate-400 bg-[#1E293B] px-1.5 py-0.5 rounded">
-                      {maskPAN(currentUser.panNumber)}
+                    <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded">
+                      DPDP Verified
                     </span>
                   </div>
                   <div className="text-xs font-bold text-white truncate">{currentUser.fullName}</div>

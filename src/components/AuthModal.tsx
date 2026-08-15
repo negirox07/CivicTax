@@ -9,14 +9,10 @@ import {
   CheckCircle2,
   Lock,
   Mail,
-  CreditCard,
-  Building2,
-  MapPin,
-  Briefcase,
+  Phone,
   AlertCircle,
-  HelpCircle,
   FileText,
-  Layers,
+  BadgeCheck,
 } from 'lucide-react';
 import { CitizenUser } from '../types';
 import {
@@ -24,7 +20,8 @@ import {
   loginCitizen,
   registerCitizen,
 } from '../utils/authService';
-import { maskPAN, formatCurrencyINR } from '../utils/formatters';
+import { saveSurveyCookieConsent } from '../utils/cookieConsent';
+import { PreCollectionPrivacyNotice } from './PreCollectionPrivacyNotice';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -64,42 +61,41 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'demo' | 'login' | 'register'>(initialTab);
 
-  // Sign In form state
+  // Sign In form state (Email or Phone)
   const [loginIdentifier, setLoginIdentifier] = useState('');
   const [loginPin, setLoginPin] = useState('1234');
   const [loginError, setLoginError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Register form state
+  // Register form state (DPDP compliant: No PAN, No Aadhaar)
   const [regFullName, setRegFullName] = useState('');
   const [regEmail, setRegEmail] = useState('');
-  const [regPan, setRegPan] = useState('');
-  const [regPassword, setRegPassword] = useState('1234');
   const [regPhone, setRegPhone] = useState('');
+  const [regPassword, setRegPassword] = useState('1234');
   const [regProfession, setRegProfession] = useState('Senior Consultant');
   const [regState, setRegState] = useState('Karnataka');
   const [regCity, setRegCity] = useState('Bengaluru');
   const [regPincode, setRegPincode] = useState('560001');
 
-  // Mandatory Terms & Conditions State
+  // Mandatory DPDP Act 2023 Consents
   const [agreeTerms, setAgreeTerms] = useState(false);
-  const [agreePublicGrowth, setAgreePublicGrowth] = useState(false);
+  const [agreeDpdpConsent, setAgreeDpdpConsent] = useState(false);
   const [agreeAccuracy, setAgreeAccuracy] = useState(false);
   const [activeTermsAccordion, setActiveTermsAccordion] = useState<'terms' | 'growth' | 'accuracy' | null>(null);
   const [regError, setRegError] = useState<string | null>(null);
 
   // All terms mandatory flag
-  const allTermsAgreed = agreeTerms && agreePublicGrowth && agreeAccuracy;
-  const agreedCount = (agreeTerms ? 1 : 0) + (agreePublicGrowth ? 1 : 0) + (agreeAccuracy ? 1 : 0);
+  const allTermsAgreed = agreeTerms && agreeDpdpConsent && agreeAccuracy;
+  const agreedCount = (agreeTerms ? 1 : 0) + (agreeDpdpConsent ? 1 : 0) + (agreeAccuracy ? 1 : 0);
 
   const handleToggleSelectAllTerms = () => {
     if (allTermsAgreed) {
       setAgreeTerms(false);
-      setAgreePublicGrowth(false);
+      setAgreeDpdpConsent(false);
       setAgreeAccuracy(false);
     } else {
       setAgreeTerms(true);
-      setAgreePublicGrowth(true);
+      setAgreeDpdpConsent(true);
       setAgreeAccuracy(true);
     }
   };
@@ -112,6 +108,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     try {
       const res = await loginCitizen(demo.email);
       if (res.success && res.user) {
+        saveSurveyCookieConsent({ userEmail: demo.email, surveyOnlyAffirmed: true, cookieStorageAgreed: true });
         onAuthSuccess(res.user);
         onClose();
       } else {
@@ -127,7 +124,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!loginIdentifier.trim()) {
-      setLoginError('Please enter your Email address or PAN Number.');
+      setLoginError('Please enter your registered Email address or Phone Number.');
       return;
     }
     setIsLoading(true);
@@ -136,10 +133,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     try {
       const res = await loginCitizen(loginIdentifier, loginPin);
       if (res.success && res.user) {
+        saveSurveyCookieConsent({ userEmail: res.user.email, surveyOnlyAffirmed: true, cookieStorageAgreed: true });
         onAuthSuccess(res.user);
         onClose();
       } else {
-        setLoginError(res.error || 'Invalid credentials.');
+        setLoginError(res.error || 'Invalid credentials or participant profile not found.');
       }
     } catch (err: any) {
       setLoginError(err.message || 'Failed to sign in.');
@@ -150,19 +148,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!regFullName.trim() || !regEmail.trim() || !regPan.trim()) {
-      setRegError('Please complete Full Name, Email, and PAN Number.');
+    if (!regFullName.trim() || !regEmail.trim()) {
+      setRegError('Full Name and Email address are required.');
       return;
     }
 
-    if (!agreeTerms || !agreePublicGrowth || !agreeAccuracy) {
-      setRegError('You must explicitly agree to all 3 required Terms, Conditions & Civic Growth Agreements before registering.');
-      return;
-    }
-
-    const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/i;
-    if (!panRegex.test(regPan.trim())) {
-      setRegError('Invalid PAN format. Must be 10 characters (e.g., ABCDE1234F).');
+    if (!agreeTerms || !agreeDpdpConsent || !agreeAccuracy) {
+      setRegError('You must explicitly review and accept all 3 DPDP Act 2023 statutory consent agreements before registering.');
       return;
     }
 
@@ -173,19 +165,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       const res = await registerCitizen({
         fullName: regFullName,
         email: regEmail,
-        panNumber: regPan.toUpperCase(),
-        password: regPassword,
         phone: regPhone,
+        password: regPassword,
         profession: regProfession,
         state: regState,
         city: regCity,
         pincode: regPincode,
         termsAccepted: true,
         dataSharingConsent: true,
+        dpdpConsentGranted: true,
         accuracyDeclaration: true,
       });
 
       if (res.success && res.user) {
+        saveSurveyCookieConsent({ userEmail: regEmail.trim(), surveyOnlyAffirmed: true, cookieStorageAgreed: true });
         onAuthSuccess(res.user);
         onClose();
       } else {
@@ -206,14 +199,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           <div className="space-y-1">
             <div className="inline-flex items-center gap-1.5 bg-emerald-500/10 text-emerald-400 text-[11px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full border border-emerald-500/20">
               <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Citizen Authentication & Privacy</span>
+              <span>DPDP Act 2023 & Rules 2025 Compliant</span>
             </div>
             <h2 className="text-xl font-bold font-serif text-white">
-              Access Your Personal Tax Records
+              Access Your Survey Profile & Civic Insights
             </h2>
             <p className="text-xs text-[#94A3B8]">
               {redirectMessage ||
-                'Sign in to access your personal tax filings, track annual budget allocations, and download official PDF impact certificates.'}
+                'Sign in with your Email or Mobile Phone to record civic budget priorities, track sector consensus, and download your participatory certificate.'}
             </p>
           </div>
 
@@ -259,7 +252,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             }`}
           >
             <KeyRound className="w-3.5 h-3.5" />
-            <span>Sign In (Email / PAN)</span>
+            <span>Sign In (Email / Phone)</span>
           </button>
 
           <button
@@ -276,7 +269,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             }`}
           >
             <User className="w-3.5 h-3.5" />
-            <span>Create New Citizen ID</span>
+            <span>Create Participant Profile</span>
           </button>
         </div>
 
@@ -286,8 +279,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           {activeTab === 'demo' && (
             <div className="space-y-4">
               <div className="flex items-center justify-between text-xs text-[#94A3B8]">
-                <span>Select a pre-loaded verified taxpayer to instantly inspect their filings:</span>
-                <span className="text-[11px] text-emerald-400 font-semibold">1-Click Instant Login</span>
+                <span>Select a sample citizen participant to explore survey responses:</span>
+                <span className="text-[11px] text-emerald-400 font-semibold">1-Click Instant Access</span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -311,15 +304,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                           <div className="text-[10px] text-[#94A3B8]">{prof.profession}</div>
                         </div>
                       </div>
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#1E293B] text-slate-300">
-                        {maskPAN(prof.panNumber)}
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                        DPDP Verified
                       </span>
                     </div>
 
                     <div className="flex items-center justify-between text-[11px] pt-2 border-t border-[#1E293B]">
                       <span className="text-[#94A3B8]">{prof.city}, {prof.state}</span>
                       <span className="font-mono text-emerald-400 font-bold">
-                        {prof.filingCount || 1} Filing{prof.filingCount !== 1 ? 's' : ''}
+                        {prof.filingCount || 1} Survey{prof.filingCount !== 1 ? 's' : ''}
                       </span>
                     </div>
                   </button>
@@ -328,7 +321,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </div>
           )}
 
-          {/* TAB 2: SIGN IN WITH EMAIL OR PAN */}
+          {/* TAB 2: SIGN IN WITH EMAIL OR PHONE */}
           {activeTab === 'login' && (
             <form onSubmit={handleLoginSubmit} className="space-y-4 max-w-md mx-auto">
               {loginError && (
@@ -341,13 +334,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-[#E2E8F0] flex items-center gap-1.5">
                   <Mail className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Email Address or 10-Digit PAN Number</span>
+                  <span>Registered Email or Mobile Phone Number</span>
                 </label>
                 <input
                   type="text"
                   value={loginIdentifier}
                   onChange={(e) => setLoginIdentifier(e.target.value)}
-                  placeholder="e.g. mukeshsingh.negi07@gmail.com or ABCDE1234F"
+                  placeholder="e.g. mukeshsingh.negi07@gmail.com or 9876543210"
                   className="w-full bg-[#0A0B0D] border border-[#1E293B] rounded-xl px-4 py-2.5 text-xs text-white placeholder-[#64748B] focus:border-emerald-500 focus:outline-none"
                   autoFocus
                 />
@@ -366,7 +359,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   className="w-full bg-[#0A0B0D] border border-[#1E293B] rounded-xl px-4 py-2.5 text-xs text-white placeholder-[#64748B] focus:border-emerald-500 focus:outline-none font-mono"
                 />
                 <span className="text-[10px] text-[#64748B] block">
-                  Demo PIN pre-filled: 1234
+                  Default demo PIN: 1234
                 </span>
               </div>
 
@@ -375,13 +368,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 disabled={isLoading}
                 className="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs shadow-lg shadow-emerald-500/20 transition active:scale-95 cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                <span>{isLoading ? 'Authenticating...' : 'Sign In to My Records'}</span>
+                <span>{isLoading ? 'Authenticating...' : 'Sign In to Survey Profile'}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </form>
           )}
 
-          {/* TAB 3: REGISTER NEW CITIZEN PROFILE */}
+          {/* TAB 3: REGISTER NEW CITIZEN PROFILE (DPDP MINIMAL DATA) */}
           {activeTab === 'register' && (
             <form onSubmit={handleRegisterSubmit} className="space-y-4">
               {regError && (
@@ -390,6 +383,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   <span>{regError}</span>
                 </div>
               )}
+
+              <PreCollectionPrivacyNotice compact={true} />
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
@@ -417,15 +412,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-[#E2E8F0]">PAN Number * (10 chars)</label>
+                  <label className="text-xs font-bold text-[#E2E8F0]">Mobile Phone Number (Optional)</label>
                   <input
-                    type="text"
-                    required
-                    maxLength={10}
-                    value={regPan}
-                    onChange={(e) => setRegPan(e.target.value.toUpperCase())}
-                    placeholder="e.g. ABCDE1234F"
-                    className="w-full bg-[#0A0B0D] border border-[#1E293B] rounded-xl px-3.5 py-2 text-xs text-white uppercase font-mono focus:border-emerald-500 focus:outline-none"
+                    type="tel"
+                    value={regPhone}
+                    onChange={(e) => setRegPhone(e.target.value)}
+                    placeholder="e.g. +91 98765 43210"
+                    className="w-full bg-[#0A0B0D] border border-[#1E293B] rounded-xl px-3.5 py-2 text-xs text-white focus:border-emerald-500 focus:outline-none"
                   />
                 </div>
 
@@ -435,7 +428,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     type="text"
                     value={regProfession}
                     onChange={(e) => setRegProfession(e.target.value)}
-                    placeholder="e.g. Software Consultant"
+                    placeholder="e.g. Healthcare Specialist / Consultant"
                     className="w-full bg-[#0A0B0D] border border-[#1E293B] rounded-xl px-3.5 py-2 text-xs text-white focus:border-emerald-500 focus:outline-none"
                   />
                 </div>
@@ -479,18 +472,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     className="w-full bg-[#0A0B0D] border border-[#1E293B] rounded-xl px-3.5 py-2 text-xs text-white focus:border-emerald-500 focus:outline-none font-mono"
                   />
                   <span className="text-[10px] text-[#64748B] block">
-                    Used to authenticate your future logins on this terminal.
+                    Used to authenticate your future logins on this civic terminal.
                   </span>
                 </div>
               </div>
 
-              {/* MANDATORY TERMS & CONDITIONS & PUBLIC GROWTH AGREEMENTS (ALL 3 REQUIRED) */}
+              {/* MANDATORY DPDP ACT 2023 CONSENT AGREEMENTS */}
               <div className="bg-[#131E32] border border-emerald-500/40 rounded-2xl p-4.5 space-y-3.5 shadow-inner">
                 <div className="flex items-center justify-between pb-2 border-b border-[#1E293B] flex-wrap gap-2">
                   <div className="flex items-center gap-2">
                     <ShieldCheck className="w-4 h-4 text-emerald-400" />
                     <span className="text-xs font-bold text-white uppercase tracking-wider">
-                      Mandatory Registration Agreements
+                      DPDP Act 2023 Statutory Consents
                     </span>
                   </div>
                   
@@ -500,12 +493,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     onClick={handleToggleSelectAllTerms}
                     className="text-[11px] text-emerald-400 hover:text-emerald-300 font-semibold underline cursor-pointer"
                   >
-                    {allTermsAgreed ? 'Deselect All' : 'Agree to All Terms (3/3)'}
+                    {allTermsAgreed ? 'Deselect All' : 'Agree to All (3/3)'}
                   </button>
                 </div>
 
                 <div className="space-y-3">
-                  {/* Agreement 1: Terms of Service & Privacy Policy */}
+                  {/* Agreement 1: Non-Government Civic Survey & Privacy Notice */}
                   <div className={`p-3 rounded-xl border transition ${
                     agreeTerms
                       ? 'bg-[#0A0B0D]/80 border-emerald-500/40'
@@ -521,9 +514,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       />
                       <div className="flex-1">
                         <label htmlFor="terms-checkbox-1" className="text-xs text-white leading-snug cursor-pointer select-none block">
-                          <span className="font-bold text-emerald-400">1. Terms of Service & Privacy Policy *</span>
+                          <span className="font-bold text-emerald-400">1. Survey-Only Purpose & Cookie Storage Consent *</span>
                           <span className="text-[#94A3B8] block text-[11px] mt-0.5">
-                            I accept the CivicTax Terms of Service, platform governance rules, and cryptographic security standards.
+                            I understand this is strictly an independent civic survey, not for any personal or government use. I accept the survey terms and agree to store my consent in browser cookies.
                           </span>
                         </label>
                         <button
@@ -531,23 +524,23 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                           onClick={() => setActiveTermsAccordion(activeTermsAccordion === 'terms' ? null : 'terms')}
                           className="mt-1 text-[10px] text-emerald-400/80 hover:text-emerald-300 underline font-medium cursor-pointer"
                         >
-                          {activeTermsAccordion === 'terms' ? 'Hide Terms details' : 'Read Terms & Privacy summary'}
+                          {activeTermsAccordion === 'terms' ? 'Hide Details' : 'Read Notice Summary'}
                         </button>
 
                         {activeTermsAccordion === 'terms' && (
                           <div className="mt-2 text-[10px] text-[#94A3B8] bg-[#0F172A] p-2.5 rounded-lg border border-[#1E293B] space-y-1">
-                            <p>• <strong>Usage:</strong> CivicTax provides participatory budgeting insights and personal tax allocation records.</p>
-                            <p>• <strong>Security:</strong> All transactions are sealed using SHA-256 cryptographic hashes.</p>
-                            <p>• <strong>Retention:</strong> User accounts may download historical filing records and official PDF certificates at any time.</p>
+                            <p>• <strong>Data Fiduciary Purpose:</strong> Independent research on citizen fiscal prioritization and public sentiment.</p>
+                            <p>• <strong>Rights under Section 11-13:</strong> Right to access, rectify, and withdraw consent at any time.</p>
+                            <p>• <strong>Contact:</strong> Data Protection Officer reachable at mukeshsingh.negi07@gmail.com.</p>
                           </div>
                         )}
                       </div>
                     </div>
                   </div>
 
-                  {/* Agreement 2: Public Growth & Open Data Sharing Consent */}
+                  {/* Agreement 2: Anonymized Consensus & Public Policy Research Consent */}
                   <div className={`p-3 rounded-xl border transition ${
-                    agreePublicGrowth
+                    agreeDpdpConsent
                       ? 'bg-[#0A0B0D]/80 border-emerald-500/40'
                       : 'bg-[#0A0B0D]/40 border-[#1E293B] hover:border-[#334155]'
                   }`}>
@@ -555,15 +548,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       <input
                         id="terms-checkbox-2"
                         type="checkbox"
-                        checked={agreePublicGrowth}
-                        onChange={(e) => setAgreePublicGrowth(e.target.checked)}
+                        checked={agreeDpdpConsent}
+                        onChange={(e) => setAgreeDpdpConsent(e.target.checked)}
                         className="mt-0.5 w-4 h-4 rounded border-emerald-500 text-emerald-500 focus:ring-emerald-500 bg-[#0A0B0D] cursor-pointer accent-emerald-500 shrink-0"
                       />
                       <div className="flex-1">
                         <label htmlFor="terms-checkbox-2" className="text-xs text-white leading-snug cursor-pointer select-none block">
-                          <span className="font-bold text-emerald-400">2. Citizen Open Data & Public Growth Consent *</span>
+                          <span className="font-bold text-emerald-400">2. Free & Informed Consent for Public Policy Research *</span>
                           <span className="text-[#94A3B8] block text-[11px] mt-0.5">
-                            I consent to share my anonymized sector allocation percentages and civic proposals for national public transparency and collective economic growth.
+                            Under Section 6 of DPDP Act 2023, I freely give unconditional consent to process and publish anonymized sector allocations for civic transparency.
                           </span>
                         </label>
                         <button
@@ -571,20 +564,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                           onClick={() => setActiveTermsAccordion(activeTermsAccordion === 'growth' ? null : 'growth')}
                           className="mt-1 text-[10px] text-emerald-400/80 hover:text-emerald-300 underline font-medium cursor-pointer"
                         >
-                          {activeTermsAccordion === 'growth' ? 'Hide Data Policy details' : 'What data is shared for public growth?'}
+                          {activeTermsAccordion === 'growth' ? 'Hide Details' : 'What is processed?'}
                         </button>
 
                         {activeTermsAccordion === 'growth' && (
                           <div className="mt-2 text-[10px] text-[#94A3B8] bg-[#0F172A] p-2.5 rounded-lg border border-[#1E293B] space-y-1">
-                            <p>• <strong>Public Consensus:</strong> Your sector weights (e.g. Healthcare 25%, Education 30%) and city/state are aggregated to the public dashboard.</p>
-                            <p>• <strong>Privacy Shield:</strong> Your full PAN, phone number, and individual identity remain confidential.</p>
+                            <p>• <strong>Aggregated Data:</strong> Sector percentages (e.g., Healthcare 30%, Education 25%) and general city/state.</p>
+                            <p>• <strong>No Identity Exposure:</strong> Personal identifiers (Email, Phone) are never published in open dataset releases.</p>
                           </div>
                         )}
                       </div>
                     </div>
                   </div>
 
-                  {/* Agreement 3: Taxpayer Accuracy Declaration */}
+                  {/* Agreement 3: Declaration of Genuine Participation */}
                   <div className={`p-3 rounded-xl border transition ${
                     agreeAccuracy
                       ? 'bg-[#0A0B0D]/80 border-emerald-500/40'
@@ -600,25 +593,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       />
                       <div className="flex-1">
                         <label htmlFor="terms-checkbox-3" className="text-xs text-white leading-snug cursor-pointer select-none block">
-                          <span className="font-bold text-emerald-400">3. Taxpayer Identity & Accuracy Declaration *</span>
+                          <span className="font-bold text-emerald-400">3. Declaration of Genuine Participation *</span>
                           <span className="text-[#94A3B8] block text-[11px] mt-0.5">
-                            I declare that the PAN, citizen name, and taxpayer details provided are accurate and belong to me for legitimate civic budgeting participation.
+                            I declare that I am participating in good faith and that the survey opinions submitted accurately represent my civic priorities.
                           </span>
                         </label>
-                        <button
-                          type="button"
-                          onClick={() => setActiveTermsAccordion(activeTermsAccordion === 'accuracy' ? null : 'accuracy')}
-                          className="mt-1 text-[10px] text-emerald-400/80 hover:text-emerald-300 underline font-medium cursor-pointer"
-                        >
-                          {activeTermsAccordion === 'accuracy' ? 'Hide Declaration details' : 'Read Declaration guidelines'}
-                        </button>
-
-                        {activeTermsAccordion === 'accuracy' && (
-                          <div className="mt-2 text-[10px] text-[#94A3B8] bg-[#0F172A] p-2.5 rounded-lg border border-[#1E293B] space-y-1">
-                            <p>• <strong>Authenticity:</strong> Prevents duplicate and fraudulent filing submissions.</p>
-                            <p>• <strong>Impact:</strong> Ensures official tax impact certificates reflect genuine civic contributions.</p>
-                          </div>
-                        )}
                       </div>
                     </div>
                   </div>
@@ -627,7 +606,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 {/* Progress Status */}
                 <div className="pt-2 border-t border-[#1E293B] flex items-center justify-between text-[11px]">
                   <span className="text-[#94A3B8]">
-                    Agreements Status: <strong className={allTermsAgreed ? 'text-emerald-400' : 'text-amber-400'}>{agreedCount} of 3 Accepted</strong>
+                    Consents Status: <strong className={allTermsAgreed ? 'text-emerald-400' : 'text-amber-400'}>{agreedCount} of 3 Accepted</strong>
                   </span>
 
                   <span className={`px-2.5 py-0.5 rounded text-[10px] font-bold ${
@@ -635,7 +614,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
                       : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
                   }`}>
-                    {allTermsAgreed ? '✓ All Terms Agreed' : '⚠ All 3 Terms Required'}
+                    {allTermsAgreed ? '✓ All Consents Granted' : '⚠ 3 Consents Required'}
                   </span>
                 </div>
               </div>
@@ -649,8 +628,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   {isLoading
                     ? 'Creating & Authenticating Profile...'
                     : !allTermsAgreed
-                    ? `Agree to All 3 Terms to Register (${agreedCount}/3)`
-                    : 'Agree to All Terms, Register Citizen ID & Sign In'}
+                    ? `Grant All 3 Consents to Register (${agreedCount}/3)`
+                    : 'Create DPDP Verified Profile & Sign In'}
                 </span>
                 <CheckCircle2 className="w-4 h-4" />
               </button>
@@ -661,7 +640,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           <div className="bg-[#0A0B0D] border border-[#1E293B] rounded-2xl p-4 flex items-start gap-3 text-xs text-[#94A3B8]">
             <Lock className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
             <p className="leading-relaxed">
-              <strong>Citizen Privacy Guarantee:</strong> Individual financial records are protected by cryptographic verification hashes. Aggregated statistics appear anonymously on the Global Public Ledger.
+              <strong>DPDP Act Compliance:</strong> Independent civic survey initiative. No PAN or Aadhaar data is processed or stored. Individual submissions are sealed with cryptographic verification hashes.
             </p>
           </div>
         </div>

@@ -1,8 +1,8 @@
 import React from 'react';
-import { X, Download, Printer, ShieldCheck, QrCode } from 'lucide-react';
+import { X, Download, ShieldCheck } from 'lucide-react';
 import { TaxRecord } from '../types';
 import { SECTOR_DEFINITIONS, ALL_SECTOR_IDS } from '../data/sectors';
-import { formatCurrencyINR, maskPAN, maskAadhaar } from '../utils/formatters';
+import { formatCurrencyINR } from '../utils/formatters';
 import { generateTaxCertificatePdf } from '../utils/pdfExport';
 
 interface CertificateModalProps {
@@ -20,7 +20,7 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({ record, onCl
         <div className="px-6 py-4 bg-[#0A0B0D] text-[#E2E8F0] border-b border-[#1E293B] flex items-center justify-between">
           <div className="flex items-center gap-2">
             <ShieldCheck className="w-5 h-5 text-emerald-400" />
-            <span className="font-bold text-sm font-serif">Citizen Tax Certificate - FY {record.financialYear}</span>
+            <span className="font-bold text-sm font-serif">Citizen Survey Participation Certificate - FY {record.financialYear}</span>
           </div>
 
           <div className="flex items-center gap-3">
@@ -45,33 +45,41 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({ record, onCl
           {/* Official Header */}
           <div className="text-center border-b border-[#1E293B] pb-4">
             <span className="text-[10px] font-bold uppercase tracking-widest text-[#94A3B8] block mb-1">
-              REPUBLIC CITIZEN PARTICIPATORY BUDGETING PLATFORM
+              CIVICTAX INDEPENDENT PARTICIPATORY BUDGETING PLATFORM
             </span>
             <h2 className="text-xl font-bold font-serif text-[#E2E8F0]">
-              Citizen Tax Allocation & Civic Contribution Certificate
+              Citizen Tax Allocation & Civic Contribution Receipt
             </h2>
             <div className="text-[#94A3B8] text-[11px] mt-1">
               Financial Assessment Year: <strong className="text-[#E2E8F0]">FY {record.financialYear}</strong> • Verification Hash: <strong className="font-mono text-emerald-400">{record.verificationHash}</strong>
             </div>
+            <div className="mt-1 flex items-center justify-center gap-2 flex-wrap">
+              <span className="inline-block px-2.5 py-0.5 rounded text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono">
+                DPDP Act 2023 Compliant • Privacy Protected
+              </span>
+              <span className="inline-block px-2.5 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300 border border-slate-700 font-mono">
+                Non-Governmental Civic Research Receipt
+              </span>
+            </div>
           </div>
 
-          {/* Citizen Details Box */}
+          {/* Citizen Details Box (DPDP Compliant - Email & Phone instead of PAN/Aadhaar) */}
           <div className="bg-[#0A0B0D] border border-[#1E293B] rounded-xl p-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div>
-              <span className="text-[#64748B] block text-[10px] uppercase">Taxpayer Name:</span>
+              <span className="text-[#64748B] block text-[10px] uppercase">Participant Name:</span>
               <span className="font-bold text-[#E2E8F0] text-sm">{record.fullName}</span>
             </div>
             <div>
-              <span className="text-[#64748B] block text-[10px] uppercase">Profession:</span>
+              <span className="text-[#64748B] block text-[10px] uppercase">Profession & Age:</span>
               <span className="font-semibold text-[#CBD5E1]">{record.profession} ({record.age}y)</span>
             </div>
             <div>
-              <span className="text-[#64748B] block text-[10px] uppercase">Masked PAN:</span>
-              <span className="font-mono font-bold text-[#CBD5E1]">{maskPAN(record.panNumber)}</span>
+              <span className="text-[#64748B] block text-[10px] uppercase">Contact Email:</span>
+              <span className="font-mono font-bold text-[#CBD5E1] truncate block">{record.email}</span>
             </div>
             <div>
-              <span className="text-[#64748B] block text-[10px] uppercase">Masked Aadhaar:</span>
-              <span className="font-mono font-bold text-[#CBD5E1]">{maskAadhaar(record.aadhaarNumber)}</span>
+              <span className="text-[#64748B] block text-[10px] uppercase">Contact Phone:</span>
+              <span className="font-mono font-bold text-[#CBD5E1]">{record.phone || 'Not Provided'}</span>
             </div>
             <div>
               <span className="text-[#64748B] block text-[10px] uppercase">Location:</span>
@@ -142,12 +150,17 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({ record, onCl
               </div>
             )}
           </div>
+
+          {/* Statutory Non-Governmental Notice */}
+          <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-200/90 text-[11px] leading-relaxed">
+            <strong>Statutory Disclaimer:</strong> This document is an independent civic receipt issued by CivicTax. CivicTax is an independent, non-governmental civic platform not affiliated with or endorsed by the Government of India, any state government, municipal corporation, or the Income Tax Department. This receipt does not constitute or replace an official Income Tax Return (ITR).
+          </div>
         </div>
 
         {/* Modal Bottom Footer */}
         <div className="px-6 py-3.5 bg-[#0A0B0D] border-t border-[#1E293B] flex items-center justify-between">
           <span className="text-[11px] text-[#94A3B8]">
-            Digital Certificate • Masked ID Protection Active
+            Independent Civic Receipt • DPDP Act 2023 Compliant
           </span>
 
           <div className="flex items-center gap-2">
@@ -160,7 +173,7 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({ record, onCl
             </button>
             <button
               onClick={onClose}
-              className="bg-[#1E293B] hover:bg-[#334155] text-[#E2E8F0] text-xs font-semibold px-4 py-2 rounded-xl border border-[#334155] transition cursor-pointer"
+              className="text-[#94A3B8] hover:text-white px-3 py-2 text-xs font-medium cursor-pointer"
             >
               Close
             </button>

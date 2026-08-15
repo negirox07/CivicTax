@@ -44,8 +44,6 @@ export interface TaxRecord {
   taxPaid: number;
   email: string;
   phone: string;
-  panNumber: string;
-  aadhaarNumber: string;
   financialYear: string;
   taxRegime?: 'old' | 'new' | string;
   state: string;
@@ -56,6 +54,8 @@ export interface TaxRecord {
   citizenProposal?: string;
   aiImpactSummary?: AiImpactSummary;
   verificationHash: string;
+  dpdpConsentGranted?: boolean;
+  dpdpNoticeVersion?: string;
 }
 
 export interface PresetAllocation {
@@ -70,8 +70,6 @@ export interface CitizenUser {
   id: string;
   fullName: string;
   email: string;
-  panNumber: string;
-  aadhaarNumber?: string;
   phone?: string;
   profession?: string;
   city?: string;
@@ -81,6 +79,8 @@ export interface CitizenUser {
   filingCount?: number;
   totalTaxContributed?: number;
   dataSharingConsent?: boolean;
+  dpdpConsentGranted?: boolean;
+  dpdpNoticeVersion?: string;
   consentTimestamp?: string;
   consentVersion?: string;
   token?: string;

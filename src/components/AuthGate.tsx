@@ -15,7 +15,6 @@ import {
 } from 'lucide-react';
 import { DEMO_CITIZEN_PROFILES } from '../utils/authService';
 import { CitizenUser } from '../types';
-import { maskPAN } from '../utils/formatters';
 
 interface AuthGateProps {
   targetFeatureName: string; // e.g. "My Filings Dashboard" | "Tax Filing & Budget Allocation" | "Verified PDF Reports"
@@ -41,51 +40,53 @@ export const AuthGate: React.FC<AuthGateProps> = ({
           <Lock className="w-8 h-8" />
         </div>
 
-        <div className="inline-flex items-center gap-1.5 bg-[#1E293B] text-slate-300 text-xs font-semibold px-3 py-1 rounded-full border border-[#334155] mb-3">
-          <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-          <span>Citizen Authentication Required</span>
+        <div className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/25 px-3 py-1 rounded-full text-emerald-400 text-xs font-bold uppercase tracking-wider mb-3">
+          <ShieldCheck className="w-3.5 h-3.5" />
+          <span>DPDP Act 2023 Compliant Citizen Access</span>
         </div>
 
-        <h2 className="text-2xl sm:text-3xl font-bold font-serif text-white mb-3">
-          Sign In to Access {targetFeatureName}
-        </h2>
+        <h1 className="text-2xl sm:text-3xl font-bold font-serif text-white mb-3">
+          Authentication Required to Access {targetFeatureName}
+        </h1>
 
-        <p className="text-xs sm:text-sm text-[#94A3B8] max-w-xl mx-auto leading-relaxed mb-8">
-          Personal tax returns, multi-year historical ledgers, and official verifiable impact certificates are private to your citizen profile. The <strong>Global Public Dashboard</strong> remains accessible to everyone.
+        <p className="text-sm text-[#94A3B8] max-w-xl mx-auto leading-relaxed mb-6">
+          Your personal tax allocation surveys and cryptographic PDF certificates are private. Sign in with your registered email and OTP or try an instant test profile.
         </p>
 
         {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 max-w-md mx-auto">
+        <div className="flex items-center justify-center gap-3 flex-wrap">
           <button
             id="auth-gate-login-btn"
             type="button"
             onClick={onOpenLoginModal}
-            className="w-full sm:w-auto flex-1 py-3 px-6 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs shadow-lg shadow-emerald-500/20 transition active:scale-95 cursor-pointer flex items-center justify-center gap-2"
+            className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-6 py-3 rounded-xl text-sm font-bold shadow-lg shadow-emerald-500/20 transition active:scale-95 cursor-pointer"
           >
             <KeyRound className="w-4 h-4" />
-            <span>Sign In / Create Citizen Account</span>
+            <span>Citizen Sign In / Register</span>
           </button>
 
           <button
-            id="auth-gate-global-dashboard-btn"
+            id="auth-gate-global-dash-btn"
             type="button"
             onClick={onGoToGlobalDashboard}
-            className="w-full sm:w-auto py-3 px-5 rounded-xl bg-[#1E293B] hover:bg-[#334155] text-[#E2E8F0] font-semibold text-xs border border-[#334155] transition active:scale-95 cursor-pointer flex items-center justify-center gap-2"
+            className="flex items-center gap-2 bg-[#1E293B] hover:bg-[#334155] text-[#E2E8F0] px-5 py-3 rounded-xl text-sm font-semibold border border-[#334155] transition active:scale-95 cursor-pointer"
           >
             <Globe2 className="w-4 h-4 text-emerald-400" />
-            <span>View Public Dashboard</span>
+            <span>Explore Public Consensus Ledger</span>
           </button>
         </div>
       </div>
 
-      {/* 1-Click Quick Demo Profile Selector */}
-      <div className="bg-[#0A0B0D] border border-[#1E293B] rounded-2xl p-6 sm:p-8 space-y-4">
+      {/* Instant 1-Click Demo Profiles */}
+      <div className="bg-[#0A0B0D] border border-[#1E293B] rounded-2xl p-6 space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-2">
-          <div className="flex items-center gap-2 text-emerald-400 text-xs font-bold uppercase tracking-wider">
-            <Sparkles className="w-4 h-4" />
-            <span>Instant Evaluation: 1-Click Taxpayer Logins</span>
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-emerald-400" />
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-300">
+              Quick Test: Select a Sample Citizen Taxpayer Profile
+            </span>
           </div>
-          <span className="text-[11px] text-[#64748B]">Click any profile to test personal records</span>
+          <span className="text-[11px] text-[#94A3B8]">Instant 1-Click Preview</span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -100,8 +101,8 @@ export const AuthGate: React.FC<AuthGateProps> = ({
                 <span className="text-xs font-bold text-white group-hover:text-emerald-400 transition">
                   {prof.fullName}
                 </span>
-                <span className="text-[10px] font-mono text-[#94A3B8] bg-[#0A0B0D] px-1.5 py-0.5 rounded border border-[#1E293B]">
-                  {maskPAN(prof.panNumber)}
+                <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                  Verified
                 </span>
               </div>
               <div className="text-[11px] text-[#94A3B8] line-clamp-1">{prof.profession}</div>

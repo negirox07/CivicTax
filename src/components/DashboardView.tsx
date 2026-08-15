@@ -20,6 +20,10 @@ import {
   Atom,
   Users,
   Eye,
+  Ban,
+  Sliders,
+  Lock,
+  ChevronRight,
 } from 'lucide-react';
 import {
   BarChart,
@@ -42,8 +46,6 @@ import { ImpactInsights } from './ImpactInsights';
 import {
   formatCurrencyINR,
   formatCompactINR,
-  maskPAN,
-  maskAadhaar,
   getTaxpayerTier,
 } from '../utils/formatters';
 
@@ -54,6 +56,8 @@ interface DashboardViewProps {
   onDownloadPdf: (record: TaxRecord) => void;
   onNewFiling: () => void;
   onViewCertModal: (record: TaxRecord) => void;
+  onOpenPrivacyModal?: (tab?: 'download' | 'delete' | 'withdraw' | 'preferences') => void;
+  onGoToComplianceCenter?: () => void;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -63,6 +67,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onDownloadPdf,
   onNewFiling,
   onViewCertModal,
+  onOpenPrivacyModal,
+  onGoToComplianceCenter,
 }) => {
   const [selectedYear, setSelectedYear] = useState<string>(
     records.length > 0 ? records[0].financialYear : '2025-26'
@@ -213,7 +219,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             {records[0].fullName}'s Civic Tax Portfolio
           </h1>
           <p className="text-xs text-[#94A3B8]">
-            Masked PAN: <strong className="text-[#E2E8F0] font-mono">{maskPAN(records[0].panNumber)}</strong> • Masked Aadhaar: <strong className="text-[#E2E8F0] font-mono">{maskAadhaar(records[0].aadhaarNumber)}</strong>
+            Contact: <strong className="text-[#E2E8F0] font-mono">{records[0].email}</strong> • Location: <strong className="text-[#E2E8F0]">{records[0].city}, {records[0].state}</strong> • <span className="text-emerald-400 font-medium">DPDP Act 2023 Compliant</span>
           </p>
         </div>
 
@@ -595,7 +601,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     </td>
                     <td className="py-3.5 px-4">
                       <div className="font-semibold text-[#E2E8F0]">{rec.fullName}</div>
-                      <div className="text-[10px] text-[#64748B] font-mono">{maskPAN(rec.panNumber)}</div>
+                      <div className="text-[10px] text-emerald-400 font-mono">{rec.email || `${rec.city}, ${rec.state}`}</div>
                     </td>
                     <td className="py-3.5 px-4 text-[#E2E8F0] font-medium font-mono">
                       {formatCurrencyINR(rec.annualSalary)}
@@ -669,6 +675,129 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               })}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      {/* Account > Privacy Controls Section (DPDP Act 2023) */}
+      <div className="bg-gradient-to-r from-[#0F172A] via-[#131E32] to-[#0A0B0D] border-2 border-emerald-500/30 rounded-3xl p-6 sm:p-8 space-y-5 shadow-xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wider">Account</span>
+              <span className="text-xs text-[#64748B]">/</span>
+              <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4" />
+                Privacy & Data Principal Rights
+              </span>
+            </div>
+            <h3 className="text-lg sm:text-xl font-bold font-serif text-white">
+              Sovereign Citizen Data Governance & Consent Hub
+            </h3>
+            <p className="text-xs text-[#94A3B8] max-w-2xl leading-relaxed">
+              Under India's DPDP Act 2023, you have full sovereign ownership of your data. You can withdraw processing consent in 1-click under Section 6(4), execute permanent deletion under Section 12, or export your full ledger.
+            </p>
+          </div>
+
+          {onGoToComplianceCenter && (
+            <button
+              type="button"
+              onClick={onGoToComplianceCenter}
+              className="self-start sm:self-center shrink-0 text-xs text-emerald-400 hover:text-emerald-300 font-bold flex items-center gap-1 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 px-3.5 py-2 rounded-xl transition cursor-pointer"
+            >
+              <span>Full Compliance Center</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
+          {/* Action 1: Withdraw Consent */}
+          <button
+            type="button"
+            onClick={() => onOpenPrivacyModal && onOpenPrivacyModal('withdraw')}
+            className="bg-[#0A0B0D] hover:bg-[#1E293B] border border-amber-500/40 rounded-2xl p-4 text-left transition group cursor-pointer shadow-sm hover:border-amber-400"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-300 flex items-center justify-center">
+                <Ban className="w-4 h-4" />
+              </div>
+              <span className="text-[10px] font-mono font-bold bg-amber-500/15 text-amber-300 px-2 py-0.5 rounded-full border border-amber-500/30">
+                Sec 6(4)
+              </span>
+            </div>
+            <div className="text-sm font-bold text-white group-hover:text-amber-300 transition">
+              Withdraw Consent
+            </div>
+            <p className="text-[11px] text-[#94A3B8] mt-1 leading-relaxed">
+              As easy as giving consent. 1-click immediate processing suspension.
+            </p>
+          </button>
+
+          {/* Action 2: Delete My Data */}
+          <button
+            type="button"
+            onClick={() => onOpenPrivacyModal && onOpenPrivacyModal('delete')}
+            className="bg-[#0A0B0D] hover:bg-[#1E293B] border border-rose-500/40 rounded-2xl p-4 text-left transition group cursor-pointer shadow-sm hover:border-rose-400"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <div className="w-8 h-8 rounded-xl bg-rose-500/20 text-rose-300 flex items-center justify-center">
+                <Trash2 className="w-4 h-4" />
+              </div>
+              <span className="text-[10px] font-mono font-bold bg-rose-500/15 text-rose-300 px-2 py-0.5 rounded-full border border-rose-500/30">
+                Sec 12
+              </span>
+            </div>
+            <div className="text-sm font-bold text-white group-hover:text-rose-300 transition">
+              Delete My Data
+            </div>
+            <p className="text-[11px] text-[#94A3B8] mt-1 leading-relaxed">
+              Permanent purge of all information, filings, and sessions.
+            </p>
+          </button>
+
+          {/* Action 3: Download My Data */}
+          <button
+            type="button"
+            onClick={() => onOpenPrivacyModal && onOpenPrivacyModal('download')}
+            className="bg-[#0A0B0D] hover:bg-[#1E293B] border border-emerald-500/40 rounded-2xl p-4 text-left transition group cursor-pointer shadow-sm hover:border-emerald-400"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-300 flex items-center justify-center">
+                <Download className="w-4 h-4" />
+              </div>
+              <span className="text-[10px] font-mono font-bold bg-emerald-500/15 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-500/30">
+                Sec 11
+              </span>
+            </div>
+            <div className="text-sm font-bold text-white group-hover:text-emerald-300 transition">
+              Download My Data
+            </div>
+            <p className="text-[11px] text-[#94A3B8] mt-1 leading-relaxed">
+              Export complete machine-readable audit package in JSON.
+            </p>
+          </button>
+
+          {/* Action 4: Privacy Preferences */}
+          <button
+            type="button"
+            onClick={() => onOpenPrivacyModal && onOpenPrivacyModal('preferences')}
+            className="bg-[#0A0B0D] hover:bg-[#1E293B] border border-slate-700 rounded-2xl p-4 text-left transition group cursor-pointer shadow-sm hover:border-emerald-400"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <div className="w-8 h-8 rounded-xl bg-slate-800 text-slate-300 flex items-center justify-center">
+                <Sliders className="w-4 h-4" />
+              </div>
+              <span className="text-[10px] font-mono font-bold bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full border border-slate-700">
+                Controls
+              </span>
+            </div>
+            <div className="text-sm font-bold text-white group-hover:text-emerald-300 transition">
+              Privacy Preferences
+            </div>
+            <p className="text-[11px] text-[#94A3B8] mt-1 leading-relaxed">
+              Granular toggles for cookies, survey modeling, and notices.
+            </p>
+          </button>
         </div>
       </div>
     </div>

@@ -13,13 +13,10 @@ import {
   ExternalLink,
   ChevronRight,
 } from 'lucide-react';
-import { TaxRecord, SectorId } from '../types';
+import { TaxRecord } from '../types';
 import { SECTOR_DEFINITIONS, ALL_SECTOR_IDS } from '../data/sectors';
 import {
   formatCurrencyINR,
-  formatCompactINR,
-  maskPAN,
-  maskAadhaar,
   getTaxpayerTier,
 } from '../utils/formatters';
 import { generateTaxCertificatePdf } from '../utils/pdfExport';
@@ -45,13 +42,13 @@ export const PdfReportsView: React.FC<PdfReportsViewProps> = ({
           <FileText className="w-12 h-12 text-[#64748B] mx-auto mb-3" />
           <h2 className="text-xl font-bold text-[#E2E8F0] font-serif mb-2">No Reports Available Yet</h2>
           <p className="text-[#94A3B8] text-sm max-w-md mx-auto mb-6">
-            Complete your annual tax allocation form to generate verified official civic reports and downloadable PDF certificates.
+            Complete your annual tax allocation survey to generate verified civic reports and downloadable PDF certificates.
           </p>
           <button
             onClick={onNewFiling}
-            className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-6 py-2.5 rounded-xl text-sm transition"
+            className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-6 py-2.5 rounded-xl text-sm transition cursor-pointer"
           >
-            File First Return
+            Participate in Survey
           </button>
         </div>
       </div>
@@ -83,13 +80,13 @@ export const PdfReportsView: React.FC<PdfReportsViewProps> = ({
         <div>
           <div className="flex items-center gap-2 text-emerald-400 text-xs font-bold uppercase tracking-wider mb-1">
             <ShieldCheck className="w-4 h-4" />
-            <span>Official Verifiable Civic Documentation</span>
+            <span>DPDP Act 2023 Compliant • Official Verifiable Documentation</span>
           </div>
           <h1 className="text-2xl font-bold text-[#E2E8F0] font-serif">
             Citizen Tax Allocation & Civic Report Hub
           </h1>
           <p className="text-xs text-[#94A3B8]">
-            Download tamper-evident PDF certificates specifying your tax contribution and participatory budget direction.
+            Download tamper-evident PDF certificates specifying your participatory budget preferences. No PAN or Aadhaar stored.
           </p>
         </div>
 
@@ -172,13 +169,13 @@ export const PdfReportsView: React.FC<PdfReportsViewProps> = ({
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <div className="inline-block bg-[#1E293B] text-emerald-400 text-[10px] uppercase font-bold tracking-widest px-2.5 py-1 rounded mb-2 border border-[#334155]">
-                    REPUBLIC CITIZEN CIVIC PORTAL
+                    REPUBLIC CITIZEN SURVEY PORTAL • DPDP ACT 2023 COMPLIANT
                   </div>
                   <h2 className="text-xl sm:text-2xl font-bold font-serif text-[#E2E8F0] tracking-tight">
                     Citizen Tax Allocation & Civic Contribution Certificate
                   </h2>
                   <p className="text-xs text-[#94A3B8] mt-0.5">
-                    Issued under the Participatory Public Budgeting & Civic Transparency Mandate
+                    Issued under the Participatory Public Budgeting & Civic Survey Initiative
                   </p>
                 </div>
 
@@ -201,10 +198,10 @@ export const PdfReportsView: React.FC<PdfReportsViewProps> = ({
               </div>
             </div>
 
-            {/* Section 1: Taxpayer Identification */}
+            {/* Section 1: Taxpayer Identification (DPDP Compliant - Email & Phone) */}
             <div className="bg-[#0A0B0D] border border-[#1E293B] rounded-xl p-4 mb-6">
               <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block mb-2">
-                1. Citizen Identification Details
+                1. Citizen Identification Details (DPDP Act 2023 Protected)
               </span>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
@@ -217,12 +214,12 @@ export const PdfReportsView: React.FC<PdfReportsViewProps> = ({
                   <span className="font-semibold text-[#CBD5E1]">{selectedRecord.profession} ({selectedRecord.age}y)</span>
                 </div>
                 <div>
-                  <span className="text-[#64748B] block text-[11px]">Masked PAN:</span>
-                  <span className="font-mono font-bold text-[#CBD5E1]">{maskPAN(selectedRecord.panNumber)}</span>
+                  <span className="text-[#64748B] block text-[11px]">Contact Email:</span>
+                  <span className="font-mono font-bold text-[#CBD5E1] truncate block">{selectedRecord.email}</span>
                 </div>
                 <div>
-                  <span className="text-[#64748B] block text-[11px]">Masked Aadhaar:</span>
-                  <span className="font-mono font-bold text-[#CBD5E1]">{maskAadhaar(selectedRecord.aadhaarNumber)}</span>
+                  <span className="text-[#64748B] block text-[11px]">Contact Phone:</span>
+                  <span className="font-mono font-bold text-[#CBD5E1]">{selectedRecord.phone || 'Not Provided'}</span>
                 </div>
                 <div>
                   <span className="text-[#64748B] block text-[11px]">Location:</span>
@@ -309,7 +306,7 @@ export const PdfReportsView: React.FC<PdfReportsViewProps> = ({
             <div className="border-t border-[#1E293B] pt-4 flex items-center justify-between text-[11px] text-[#64748B] flex-wrap gap-2">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="w-5 h-5 text-emerald-400" />
-                <span>Authenticity Verified • CivicTax Open Governance Network</span>
+                <span>DPDP Act 2023 Compliant • CivicTax Open Governance Network</span>
               </div>
               <div>
                 <span>Generated: {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>

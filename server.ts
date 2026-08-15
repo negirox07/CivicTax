@@ -1,35 +1,29 @@
 import express, { Request, Response } from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
-import dotenv from "dotenv";
 import { GoogleGenAI } from "@google/genai";
 
-dotenv.config();
-
+// Initialize Gemini API client (lazily and securely on server only)
 let aiClient: GoogleGenAI | null = null;
 function getAiClient(): GoogleGenAI | null {
-  if (!aiClient && process.env.GEMINI_API_KEY) {
-    aiClient = new GoogleGenAI({
-      apiKey: process.env.GEMINI_API_KEY,
-      httpOptions: {
-        headers: {
-          "User-Agent": "aistudio-build",
-        },
-      },
-    });
+  if (!aiClient) {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (apiKey) {
+      aiClient = new GoogleGenAI({ apiKey });
+    }
   }
   return aiClient;
 }
 
 // In-memory registered user database with pre-seeded demo citizen profiles
+// Designed under India's Digital Personal Data Protection Act (DPDP Act), 2023 & DPDP Rules, 2025
+// Strictly NO PAN or Aadhaar identifiers are stored.
 interface StoredCitizenUser {
   id: string;
   fullName: string;
   email: string;
-  panNumber: string;
-  passwordHash: string;
-  aadhaarNumber?: string;
   phone?: string;
+  passwordHash: string;
   profession?: string;
   city?: string;
   state?: string;
@@ -37,6 +31,8 @@ interface StoredCitizenUser {
   avatar?: string;
   filingCount?: number;
   totalTaxContributed?: number;
+  dpdpConsentGranted: boolean;
+  dpdpNoticeVersion: string;
   dataSharingConsent: boolean;
   consentTimestamp: string;
   consentVersion: string;
@@ -49,81 +45,81 @@ const CITIZEN_USERS_STORE: StoredCitizenUser[] = [
     id: "usr_mukesh",
     fullName: "Mukesh Singh Negi",
     email: "mukeshsingh.negi07@gmail.com",
-    panNumber: "ABCDE1234F",
-    passwordHash: "1234", // Simple demo PIN
-    aadhaarNumber: "789456123012",
     phone: "+91 98765 43210",
+    passwordHash: "1234", // Demo PIN
     profession: "Senior Software Engineer",
     city: "Bengaluru",
     state: "Karnataka",
     pincode: "560103",
     filingCount: 3,
     totalTaxContributed: 965000,
+    dpdpConsentGranted: true,
+    dpdpNoticeVersion: "DPDP-ACT-2023-RULES-2025-v1.0",
     dataSharingConsent: true,
-    consentTimestamp: "2025-04-12T10:30:00Z",
-    consentVersion: "v1.0-public-growth",
-    createdAt: "2025-04-10T09:00:00Z",
-    updatedAt: "2025-04-12T10:30:00Z",
+    consentTimestamp: "2026-08-01T10:30:00Z",
+    consentVersion: "DPDP-2023-v1.0",
+    createdAt: "2026-08-01T09:00:00Z",
+    updatedAt: "2026-08-01T10:30:00Z",
   },
   {
     id: "usr_priya",
     fullName: "Priya Narayanan",
     email: "priya.narayanan@example.com",
-    panNumber: "BPLPN5432K",
-    passwordHash: "1234",
-    aadhaarNumber: "453218907654",
     phone: "+91 98450 11223",
+    passwordHash: "1234",
     profession: "Clinical Research Associate",
     city: "Chennai",
     state: "Tamil Nadu",
     pincode: "600028",
     filingCount: 1,
     totalTaxContributed: 225000,
+    dpdpConsentGranted: true,
+    dpdpNoticeVersion: "DPDP-ACT-2023-RULES-2025-v1.0",
     dataSharingConsent: true,
-    consentTimestamp: "2025-05-18T14:15:00Z",
-    consentVersion: "v1.0-public-growth",
-    createdAt: "2025-05-18T14:15:00Z",
-    updatedAt: "2025-05-18T14:15:00Z",
+    consentTimestamp: "2026-08-05T14:15:00Z",
+    consentVersion: "DPDP-2023-v1.0",
+    createdAt: "2026-08-05T14:15:00Z",
+    updatedAt: "2026-08-05T14:15:00Z",
   },
   {
     id: "usr_rahul",
     fullName: "Rahul Sharma",
     email: "rahul.sharma@example.com",
-    panNumber: "AZRPS8876M",
-    passwordHash: "1234",
-    aadhaarNumber: "671290345612",
     phone: "+91 97112 33445",
+    passwordHash: "1234",
     profession: "Supply Chain Architect",
     city: "Mumbai",
     state: "Maharashtra",
     pincode: "400050",
     filingCount: 1,
     totalTaxContributed: 610000,
+    dpdpConsentGranted: true,
+    dpdpNoticeVersion: "DPDP-ACT-2023-RULES-2025-v1.0",
     dataSharingConsent: true,
-    consentTimestamp: "2025-06-02T11:45:00Z",
-    consentVersion: "v1.0-public-growth",
-    createdAt: "2025-06-02T11:45:00Z",
-    updatedAt: "2025-06-02T11:45:00Z",
+    consentTimestamp: "2026-08-07T11:45:00Z",
+    consentVersion: "DPDP-2023-v1.0",
+    createdAt: "2026-08-07T11:45:00Z",
+    updatedAt: "2026-08-07T11:45:00Z",
   },
   {
     id: "usr_ananya",
     fullName: "Dr. Ananya Roy",
     email: "ananya.roy@example.com",
-    panNumber: "CKPAR4412Q",
-    passwordHash: "1234",
-    aadhaarNumber: "332187654321",
     phone: "+91 94331 99887",
+    passwordHash: "1234",
     profession: "Biotech Scientist & Educator",
     city: "Kolkata",
     state: "West Bengal",
     pincode: "700019",
     filingCount: 1,
     totalTaxContributed: 490000,
+    dpdpConsentGranted: true,
+    dpdpNoticeVersion: "DPDP-ACT-2023-RULES-2025-v1.0",
     dataSharingConsent: true,
-    consentTimestamp: "2025-06-20T16:00:00Z",
-    consentVersion: "v1.0-public-growth",
-    createdAt: "2025-06-20T16:00:00Z",
-    updatedAt: "2025-06-20T16:00:00Z",
+    consentTimestamp: "2026-08-10T16:00:00Z",
+    consentVersion: "DPDP-2023-v1.0",
+    createdAt: "2026-08-10T16:00:00Z",
+    updatedAt: "2026-08-10T16:00:00Z",
   },
 ];
 
@@ -144,23 +140,26 @@ async function startServer() {
 
   // Health check
   app.get("/api/health", (_req: Request, res: Response) => {
-    res.json({ status: "ok", service: "civictax-api" });
+    res.json({
+      status: "ok",
+      service: "civictax-api",
+      dpdpCompliance: "DPDP Act 2023 & DPDP Rules 2025 Compliant",
+      purpose: "Independent Civic Budget Opinion Survey (Non-Government)",
+    });
   });
 
   // -------------------------------------------------------------
-  // AUTHENTICATION & CITIZEN REGISTRATION ENDPOINTS
+  // AUTHENTICATION & CITIZEN REGISTRATION ENDPOINTS (DPDP ACT 2023)
   // -------------------------------------------------------------
 
-  // 1. Citizen Registration with Explicit Backend Terms & Consent Validation
+  // 1. Citizen Registration with Explicit DPDP Act 2023 Consent & Data Minimization
   app.post("/api/auth/register", (req: Request, res: Response) => {
     try {
       const {
         fullName,
         email,
-        panNumber,
-        password,
-        aadhaarNumber,
         phone,
+        password,
         profession,
         city,
         state,
@@ -168,59 +167,57 @@ async function startServer() {
         termsAccepted,
         dataSharingConsent,
         accuracyDeclaration,
+        dpdpConsentGranted,
       } = req.body;
 
-      // Validate required fields
-      if (!fullName || !email || !panNumber) {
+      // Validate required fields (Email & Full Name are primary identifiers)
+      if (!fullName || !email) {
         return res.status(400).json({
-          error: "Full name, Email address, and PAN Number are mandatory for citizen registration.",
+          error: "Full Name and Email address are mandatory for registration under DPDP Act 2023 guidelines.",
         });
       }
 
-      // Validate Explicit Terms & Conditions and Consents
+      const cleanEmail = String(email).trim().toLowerCase();
+      if (!cleanEmail.includes("@") || cleanEmail.length < 5) {
+        return res.status(400).json({
+          error: "Please provide a valid email address.",
+        });
+      }
+
+      // Validate Explicit DPDP Act 2023 Terms & Consents
       if (termsAccepted !== true) {
         return res.status(400).json({
-          error: "You must accept the CivicTax Terms of Service & Privacy Policy to create an account.",
+          error: "You must accept the CivicTax Survey Terms & DPDP Privacy Notice.",
         });
       }
 
-      if (dataSharingConsent !== true) {
+      if (dataSharingConsent !== true && dpdpConsentGranted !== true) {
         return res.status(400).json({
           error:
-            "Citizen consent is required. You must check the consent agreement to share anonymized tax allocation data for national public transparency and civic growth.",
+            "Participant consent under Section 6 of DPDP Act 2023 is required to process and aggregate anonymized civic budget preferences.",
         });
       }
 
       if (accuracyDeclaration !== true) {
         return res.status(400).json({
-          error: "You must certify that the taxpayer identity and financial details provided are accurate.",
+          error: "You must declare that the demographic and civic opinion information provided is genuine.",
         });
       }
 
-      // Clean & validate PAN
-      const cleanPan = String(panNumber).trim().toUpperCase();
-      const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
-      if (!panRegex.test(cleanPan)) {
-        return res.status(400).json({
-          error: "Invalid PAN format. PAN must be exactly 10 characters (e.g. ABCDE1234F).",
-        });
-      }
+      const cleanPhone = phone ? String(phone).trim() : undefined;
 
-      const cleanEmail = String(email).trim().toLowerCase();
-
-      // Check if user already exists
+      // Check if user already exists by email
       const existingUser = CITIZEN_USERS_STORE.find(
-        (u) =>
-          u.email.toLowerCase() === cleanEmail ||
-          u.panNumber.toUpperCase() === cleanPan
+        (u) => u.email.toLowerCase() === cleanEmail
       );
 
       if (existingUser) {
         // Update user consent and profile details if needed
         existingUser.dataSharingConsent = true;
+        existingUser.dpdpConsentGranted = true;
         existingUser.consentTimestamp = new Date().toISOString();
         if (password) existingUser.passwordHash = String(password);
-        if (phone) existingUser.phone = String(phone);
+        if (cleanPhone) existingUser.phone = cleanPhone;
         if (profession) existingUser.profession = String(profession);
         if (city) existingUser.city = String(city);
         if (state) existingUser.state = String(state);
@@ -230,7 +227,7 @@ async function startServer() {
         const token = `ct_token_${Buffer.from(`${existingUser.id}:${existingUser.email}`).toString("base64")}`;
         return res.json({
           success: true,
-          message: "Citizen profile recognized and logged in successfully.",
+          message: "Participant profile recognized and authenticated successfully under DPDP Act 2023 rules.",
           user: sanitizeCitizenUser(existingUser, token),
         });
       }
@@ -243,19 +240,19 @@ async function startServer() {
         id: newUserId,
         fullName: String(fullName).trim(),
         email: cleanEmail,
-        panNumber: cleanPan,
+        phone: cleanPhone,
         passwordHash: password ? String(password) : "1234",
-        aadhaarNumber: aadhaarNumber ? String(aadhaarNumber).trim() : undefined,
-        phone: phone ? String(phone).trim() : undefined,
-        profession: profession ? String(profession).trim() : "Taxpayer Contributor",
+        profession: profession ? String(profession).trim() : "Civic Participant",
         city: city ? String(city).trim() : "Bengaluru",
         state: state ? String(state).trim() : "Karnataka",
         pincode: pincode ? String(pincode).trim() : "560001",
         filingCount: 0,
         totalTaxContributed: 0,
+        dpdpConsentGranted: true,
+        dpdpNoticeVersion: "DPDP-ACT-2023-RULES-2025-v1.0",
         dataSharingConsent: true,
         consentTimestamp: nowIso,
-        consentVersion: "v1.0-public-growth",
+        consentVersion: "DPDP-2023-v1.0",
         createdAt: nowIso,
         updatedAt: nowIso,
       };
@@ -266,38 +263,40 @@ async function startServer() {
 
       return res.status(201).json({
         success: true,
-        message: "Citizen registered and authenticated successfully.",
+        message: "Participant registered and authenticated successfully under DPDP Act 2023.",
         user: sanitizeCitizenUser(newCitizen, token),
       });
     } catch (err: any) {
       console.error("Citizen registration error:", err);
-      return res.status(500).json({ error: err.message || "Failed to register citizen." });
+      return res.status(500).json({ error: err.message || "Failed to register participant." });
     }
   });
 
-  // 2. Citizen Sign In (by Email or PAN with Password/PIN verification)
+  // 2. Citizen Sign In (by Email or Phone with Password/PIN verification)
   app.post("/api/auth/login", (req: Request, res: Response) => {
     try {
       const { identifier, password } = req.body;
 
       if (!identifier || !String(identifier).trim()) {
         return res.status(400).json({
-          error: "Please provide your Email Address or 10-Digit PAN Number.",
+          error: "Please provide your registered Email Address or Phone Number.",
         });
       }
 
       const cleanId = String(identifier).trim().toLowerCase();
-      const cleanPan = String(identifier).trim().toUpperCase();
+      const digitsOnly = cleanId.replace(/\D/g, "");
 
-      const user = CITIZEN_USERS_STORE.find(
-        (u) =>
-          u.email.toLowerCase() === cleanId ||
-          u.panNumber.toUpperCase() === cleanPan
-      );
+      const user = CITIZEN_USERS_STORE.find((u) => {
+        const uEmail = u.email.toLowerCase();
+        const uPhoneDigits = (u.phone || "").replace(/\D/g, "");
+        const matchEmail = uEmail === cleanId;
+        const matchPhone = digitsOnly.length >= 10 && uPhoneDigits.endsWith(digitsOnly.slice(-10));
+        return matchEmail || matchPhone;
+      });
 
       if (!user) {
         return res.status(404).json({
-          error: "No citizen account found with this Email or PAN. Please register a new account.",
+          error: "No participant profile found with this Email or Phone number. Please register a new survey profile.",
         });
       }
 
@@ -312,7 +311,7 @@ async function startServer() {
 
       return res.json({
         success: true,
-        message: "Citizen authenticated successfully.",
+        message: "Participant authenticated successfully.",
         user: sanitizeCitizenUser(user, token),
       });
     } catch (err: any) {
@@ -330,7 +329,6 @@ async function startServer() {
       }
 
       const token = authHeader.split(" ")[1];
-      // Format: ct_token_<base64(id:email)>
       if (!token.startsWith("ct_token_")) {
         return res.status(401).json({ error: "Invalid token format." });
       }
@@ -344,7 +342,7 @@ async function startServer() {
       );
 
       if (!user) {
-        return res.status(404).json({ error: "Authenticated citizen session expired." });
+        return res.status(404).json({ error: "Authenticated survey session expired." });
       }
 
       return res.json({
@@ -357,7 +355,7 @@ async function startServer() {
     }
   });
 
-  // 4. Update Citizen Data Sharing Consent
+  // 4. Update Citizen DPDP Consent (Consent Withdrawal & Update under Section 6(4))
   app.post("/api/auth/consent", (req: Request, res: Response) => {
     try {
       const { userId, email, consentGiven, consentVersion } = req.body;
@@ -366,17 +364,20 @@ async function startServer() {
       );
 
       if (!user) {
-        return res.status(404).json({ error: "Citizen not found." });
+        return res.status(404).json({ error: "Participant profile not found." });
       }
 
       user.dataSharingConsent = consentGiven === true;
+      user.dpdpConsentGranted = consentGiven === true;
       user.consentTimestamp = new Date().toISOString();
-      user.consentVersion = consentVersion || "v1.0-public-growth";
+      user.consentVersion = consentVersion || "DPDP-ACT-2023-RULES-2025-v1.0";
       user.updatedAt = new Date().toISOString();
 
       return res.json({
         success: true,
-        message: "Data sharing and civic growth consent preference updated.",
+        message: consentGiven
+          ? "DPDP Act 2023 survey research consent granted."
+          : "DPDP Act 2023 survey consent withdrawn. Anonymized data will not be shared in future public consensus sets.",
         user: sanitizeCitizenUser(user),
       });
     } catch (err: any) {
@@ -407,34 +408,36 @@ async function startServer() {
       if (!ai) {
         // Return structured rule-based civic impact if no API key is available
         return res.json({
-          summary: `As a ${profession || "Citizen"} contributing ₹${Number(taxPaid || 0).toLocaleString("en-IN")} in FY ${financialYear || "2025-26"}, your preferred prioritization directs significant public funds into key civic building blocks.`,
+          summary: `As a ${profession || "Civic Participant"} contributing an estimated ₹${Number(taxPaid || 0).toLocaleString("en-IN")} in tax benchmark for FY ${financialYear || "2025-26"}, your preferred prioritization directs civic focus into key community sectors.`,
           keyTakeaways: [
-            `Direct contribution creates high multiplier effects in local state development.`,
-            `Balanced resource distribution accelerates essential public infrastructure and welfare capabilities.`,
-            `Active civic participation encourages transparent governmental fiscal planning.`,
+            `Direct allocation preference reflects community demand for balanced infrastructure and public services.`,
+            `Transparent consensus modeling provides valuable public policy signals for local development.`,
+            `Active civic participation encourages transparent fiscal prioritization.`,
           ],
-          civicEmpowermentQuote: "Informed citizen participation transforms mandatory taxation into purposeful nation building.",
+          civicEmpowermentQuote: "Informed citizen participation empowers transparent civic dialogue and balanced community development.",
         });
       }
 
-      const prompt = `You are a civic finance and public policy expert. Analyze the following taxpayer's annual tax filing and sector allocation preference for national public budgets:
-Taxpayer Name: ${taxpayerName || "Citizen"}
+      const prompt = `You are an independent civic finance and public policy research specialist. Analyze the following citizen's survey response and budgetary prioritization preferences for national public development:
+Participant: ${taxpayerName || "Civic Participant"}
 Profession: ${profession || "Working Professional"}
-Annual Income: ₹${salary}
-Tax Paid: ₹${taxPaid}
+Reported Annual Income: ₹${salary}
+Tax Contribution Benchmark: ₹${taxPaid}
 Financial Year: ${financialYear}
-Allocations: ${JSON.stringify(allocations)}
-Citizen's Civic Note / Vision: "${citizenNote || "Ensure transparent and quality public amenities"}"
+Preferred Allocations: ${JSON.stringify(allocations)}
+Citizen's Civic Vision / Note: "${citizenNote || "Ensure transparent and quality public amenities"}"
+
+Note: This is an independent civic survey in India governed under the DPDP Act, 2023.
 
 Provide a concise, inspiring, and transparent civic impact analysis in JSON format with:
-1. "summary": A 2-sentence empowering evaluation of how their specific rupee contribution and chosen allocation affects civic progress.
+1. "summary": A 2-sentence empowering evaluation of how their specific allocation preference affects civic priorities.
 2. "keyTakeaways": An array of 3 bullet points showing tangible local or national outcomes enabled by their preferences (e.g. healthcare facilities, schools, highway km, clean energy).
-3. "civicEmpowermentQuote": A 1-sentence memorable quote about civic responsibility and transparent governance.
+3. "civicEmpowermentQuote": A 1-sentence memorable quote about civic participation and transparent public policy.
 
 Respond strictly in valid JSON format.`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-3.7-flash",
+        model: "gemini-2.5-flash",
         contents: prompt,
         config: {
           responseMimeType: "application/json",
@@ -449,20 +452,20 @@ Respond strictly in valid JSON format.`;
         res.json({
           summary: text,
           keyTakeaways: [
-            "Your tax investment accelerates vital social and economic infrastructure.",
-            "Citizen feedback fosters accountable government budgetary allocation.",
+            "Your preference signals vital support for public infrastructure and education.",
+            "Citizen feedback fosters accountable community planning benchmarks.",
           ],
-          civicEmpowermentQuote: "Every rupee accounted for is a step toward stronger democracy.",
+          civicEmpowermentQuote: "Every voice in civic planning strengthens democratic transparency.",
         });
       }
     } catch (err: any) {
       console.error("AI Civic Impact generation error:", err);
       res.status(500).json({
         error: "Failed to generate AI insights",
-        summary: "Your tax contribution actively drives local and national progress across infrastructure, healthcare, and education.",
+        summary: "Your survey contribution actively highlights civic priorities across infrastructure, healthcare, and education.",
         keyTakeaways: [
-          "Drives sustainable economic growth and public welfare.",
-          "Strengthens transparent civic allocation benchmarks.",
+          "Informs sustainable economic development and public welfare priorities.",
+          "Strengthens citizen-driven public policy benchmarks.",
         ],
         civicEmpowermentQuote: "Civic stewardship begins with individual transparency.",
       });
@@ -480,33 +483,45 @@ Respond strictly in valid JSON format.`;
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://civictax.org/</loc>
-    <lastmod>2026-08-14</lastmod>
+    <lastmod>2026-08-15</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
     <loc>https://civictax.org/#filing</loc>
-    <lastmod>2026-08-14</lastmod>
+    <lastmod>2026-08-15</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
     <loc>https://civictax.org/#dashboard</loc>
-    <lastmod>2026-08-14</lastmod>
+    <lastmod>2026-08-15</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://civictax.org/#transparency</loc>
-    <lastmod>2026-08-14</lastmod>
+    <lastmod>2026-08-15</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://civictax.org/#reports</loc>
-    <lastmod>2026-08-14</lastmod>
+    <lastmod>2026-08-15</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://civictax.org/#privacy</loc>
+    <lastmod>2026-08-15</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://civictax.org/#about</loc>
+    <lastmod>2026-08-15</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
   </url>
 </urlset>`);
   });

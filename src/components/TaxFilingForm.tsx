@@ -16,13 +16,13 @@ import {
   ArrowRight,
   FileCheck2,
   Download,
-  Info,
-  HelpCircle,
   Layers,
-  MapPin,
-  CreditCard,
   User,
   DollarSign,
+  Lock,
+  Phone,
+  Mail,
+  BadgeCheck,
 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
 import confetti from 'canvas-confetti';
@@ -32,11 +32,10 @@ import { ImpactInsights } from './ImpactInsights';
 import {
   formatCurrencyINR,
   formatCompactINR,
-  maskPAN,
-  maskAadhaar,
-  formatAadhaarInput,
   generateVerificationHash,
 } from '../utils/formatters';
+import { saveSurveyCookieConsent } from '../utils/cookieConsent';
+import { PreCollectionPrivacyNotice } from './PreCollectionPrivacyNotice';
 
 interface TaxFilingFormProps {
   initialData?: TaxRecord | null;
@@ -61,7 +60,7 @@ export const TaxFilingForm: React.FC<TaxFilingFormProps> = ({
   onGoToDashboard,
   onDownloadPdf,
 }) => {
-  // Form State
+  // Form State (DPDP Compliant - No PAN or Aadhaar)
   const [fullName, setFullName] = useState(initialData?.fullName || currentUser?.fullName || '');
   const [age, setAge] = useState<number | ''>(initialData?.age || 30);
   const [profession, setProfession] = useState(initialData?.profession || currentUser?.profession || 'Software Professional');
@@ -69,8 +68,6 @@ export const TaxFilingForm: React.FC<TaxFilingFormProps> = ({
   const [taxPaid, setTaxPaid] = useState<number | ''>(initialData?.taxPaid || 250000);
   const [email, setEmail] = useState(initialData?.email || currentUser?.email || '');
   const [phone, setPhone] = useState(initialData?.phone || currentUser?.phone || '');
-  const [panNumber, setPanNumber] = useState(initialData?.panNumber || currentUser?.panNumber || '');
-  const [aadhaarNumber, setAadhaarNumber] = useState(initialData?.aadhaarNumber || currentUser?.aadhaarNumber || '');
   const [financialYear, setFinancialYear] = useState(initialData?.financialYear || '2025-26');
   const [state, setState] = useState(initialData?.state || currentUser?.state || 'Karnataka');
   const [city, setCity] = useState(initialData?.city || currentUser?.city || 'Bengaluru');
@@ -110,9 +107,7 @@ export const TaxFilingForm: React.FC<TaxFilingFormProps> = ({
       setAnnualSalary(initialData.annualSalary);
       setTaxPaid(initialData.taxPaid);
       setEmail(initialData.email);
-      setPhone(initialData.phone);
-      setPanNumber(initialData.panNumber);
-      setAadhaarNumber(initialData.aadhaarNumber);
+      setPhone(initialData.phone || '');
       setFinancialYear(initialData.financialYear);
       setState(initialData.state);
       setCity(initialData.city);
@@ -123,7 +118,6 @@ export const TaxFilingForm: React.FC<TaxFilingFormProps> = ({
     } else if (currentUser) {
       setFullName(currentUser.fullName || '');
       setEmail(currentUser.email || '');
-      setPanNumber(currentUser.panNumber || '');
       if (currentUser.phone) setPhone(currentUser.phone);
       if (currentUser.profession) setProfession(currentUser.profession);
       if (currentUser.state) setState(currentUser.state);
@@ -166,15 +160,12 @@ export const TaxFilingForm: React.FC<TaxFilingFormProps> = ({
     const diff: number = 100 - totalPercentage;
     if (diff === 0) return;
 
-    // Distribute diff across active non-zero sectors or all sectors
     const entries = Object.entries(allocations) as [SectorId, number][];
     const newAlloc = { ...allocations };
     
-    // Add 1% step-by-step to highest or lowest
-    let remainder = 100;
     const count = entries.length;
     const baseShare = Math.floor(100 / count);
-    let extra = 100 % count;
+    const extra = 100 % count;
 
     entries.forEach(([id], idx) => {
       newAlloc[id] = baseShare + (idx < extra ? 1 : 0);
@@ -195,13 +186,8 @@ export const TaxFilingForm: React.FC<TaxFilingFormProps> = ({
     if (!age || age < 18 || age > 120) errs.age = 'Age must be between 18 and 120';
     if (!profession.trim()) errs.profession = 'Please specify your profession';
     if (!email.trim() || !email.includes('@')) errs.email = 'Valid email is required for confirmation';
-    if (!phone.trim() || phone.replace(/\D/g, '').length < 10) errs.phone = 'Please provide a valid 10-digit mobile number';
-    if (!panNumber.trim() || panNumber.trim().length !== 10) {
-      errs.panNumber = 'PAN must be exactly 10 alphanumeric characters (e.g., ABCDE1234F)';
-    }
-    const cleanAadhaar = aadhaarNumber.replace(/\D/g, '');
-    if (!cleanAadhaar || cleanAadhaar.length !== 12) {
-      errs.aadhaarNumber = 'Aadhaar must be a 12-digit number';
+    if (phone.trim() && phone.replace(/\D/g, '').length < 10) {
+      errs.phone = 'Please provide a valid 10-digit mobile number';
     }
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -210,7 +196,7 @@ export const TaxFilingForm: React.FC<TaxFilingFormProps> = ({
   const validateStep2 = () => {
     const errs: Record<string, string> = {};
     if (!annualSalary || Number(annualSalary) <= 0) errs.annualSalary = 'Please enter annual income';
-    if (taxPaid === '' || Number(taxPaid) < 0) errs.taxPaid = 'Please enter tax paid amount';
+    if (taxPaid === '' || Number(taxPaid) < 0) errs.taxPaid = 'Please enter estimated tax paid amount';
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -252,7 +238,7 @@ export const TaxFilingForm: React.FC<TaxFilingFormProps> = ({
     }
   };
 
-  // Final Form Submission
+  // Final Form Submission (DPDP Compliant)
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateStep1()) {
@@ -268,9 +254,7 @@ export const TaxFilingForm: React.FC<TaxFilingFormProps> = ({
       return;
     }
 
-    const cleanPan = panNumber.toUpperCase().trim();
-    const cleanAadhaar = aadhaarNumber.replace(/\D/g, '');
-    const vHash = generateVerificationHash(cleanPan, financialYear, Number(taxPaid));
+    const vHash = generateVerificationHash(email.trim().toLowerCase(), financialYear, Number(taxPaid));
 
     const newRecord: TaxRecord = {
       id: initialData?.id || `rec_${Date.now()}`,
@@ -280,9 +264,7 @@ export const TaxFilingForm: React.FC<TaxFilingFormProps> = ({
       annualSalary: Number(annualSalary),
       taxPaid: Number(taxPaid),
       email: email.trim(),
-      phone: phone.trim(),
-      panNumber: cleanPan,
-      aadhaarNumber: cleanAadhaar,
+      phone: phone.trim() || undefined,
       financialYear,
       state,
       city: city.trim(),
@@ -290,20 +272,33 @@ export const TaxFilingForm: React.FC<TaxFilingFormProps> = ({
       submissionDate: new Date().toISOString(),
       allocations,
       citizenProposal: citizenProposal.trim(),
+      dpdpConsentGranted: true,
+      dpdpNoticeVersion: 'DPDP-ACT-2023-RULES-2025-v1.0',
       aiImpactSummary: aiInsight || {
-        summary: `Your contribution of ${formatCurrencyINR(Number(taxPaid))} in FY ${financialYear} strategically channels vital resources into priority public development.`,
+        summary: `Your recorded civic priority for ${formatCurrencyINR(Number(taxPaid))} in FY ${financialYear} strategically channels vital resources into priority public development.`,
         keyTakeaways: [
-          'Directly empowers regional infrastructure and medical advancements.',
-          'Bolsters public education and renewable energy adoption.',
-          'Strengthens participatory civic governance.',
+          'Directly reflects democratic prioritization for regional infrastructure and medical advancements.',
+          'Bolsters public education and renewable energy transition consensus.',
+          'Strengthens participatory civic governance under DPDP Act privacy safeguards.',
         ],
-        civicEmpowermentQuote: 'Democratic taxation is highest when citizens steer public progress.',
+        civicEmpowermentQuote: 'Democratic public policy is strongest when citizens directly voice budgetary priorities.',
       },
       verificationHash: initialData?.verificationHash || vHash,
     };
 
     onSaveRecord(newRecord);
     setSubmittedRecord(newRecord);
+
+    // Save Survey & Cookie Consent preference in browser cookies
+    try {
+      saveSurveyCookieConsent({
+        userEmail: email.trim(),
+        surveyOnlyAffirmed: true,
+        cookieStorageAgreed: true,
+      });
+    } catch (e) {
+      console.warn('Cookie consent save error:', e);
+    }
 
     // Trigger celebratory confetti
     confetti({
@@ -337,62 +332,32 @@ export const TaxFilingForm: React.FC<TaxFilingFormProps> = ({
           </div>
 
           <span className="inline-block bg-emerald-500/10 text-emerald-400 text-xs font-bold px-3 py-1 rounded-full border border-emerald-500/20 mb-2">
-            Filing Confirmed for FY {submittedRecord.financialYear}
+            Survey Recorded for FY {submittedRecord.financialYear}
           </span>
 
           <h2 className="text-2xl font-bold text-[#E2E8F0] font-serif mb-2">
-            Civic Tax Allocation Successfully Recorded!
+            Civic Budget Priority Successfully Recorded!
           </h2>
           <p className="text-[#94A3B8] text-sm max-w-lg mx-auto mb-6">
-            Thank you, <strong className="text-[#E2E8F0]">{submittedRecord.fullName}</strong>. Your tax contribution of{' '}
-            <strong className="text-emerald-400 font-mono">{formatCurrencyINR(submittedRecord.taxPaid)}</strong> and custom sector allocation have been saved to your civic dashboard.
+            Thank you, <strong className="text-[#E2E8F0]">{submittedRecord.fullName}</strong>. Your civic contribution record of{' '}
+            <strong className="text-emerald-400 font-mono">{formatCurrencyINR(submittedRecord.taxPaid)}</strong> and custom sector allocation have been saved securely under DPDP Act 2023 privacy protections.
           </p>
 
-          {/* Verification Code Box */}
-          <div className="bg-[#0A0B0D] border border-[#1E293B] rounded-xl p-4 max-w-md mx-auto mb-6 text-left">
-            <div className="flex items-center justify-between text-xs text-[#94A3B8] mb-1">
-              <span>Digital Certificate Hash:</span>
-              <span className="font-semibold text-emerald-400">VERIFIED</span>
-            </div>
-            <div className="font-mono text-sm font-bold text-emerald-400 tracking-wide bg-[#0F172A] p-2.5 rounded border border-[#1E293B]">
-              {submittedRecord.verificationHash}
-            </div>
-            <div className="flex items-center justify-between text-[11px] text-[#64748B] mt-2">
-              <span>Masked PAN: <strong className="text-[#94A3B8]">{maskPAN(submittedRecord.panNumber)}</strong></span>
-              <span>Masked Aadhaar: <strong className="text-[#94A3B8]">{maskAadhaar(submittedRecord.aadhaarNumber)}</strong></span>
-            </div>
-          </div>
-
-          {/* Post-Filing Impact Insights Section */}
-          <div className="my-6 text-left">
-            <ImpactInsights
-              allocations={submittedRecord.allocations}
-              taxPaid={submittedRecord.taxPaid}
-              annualSalary={submittedRecord.annualSalary}
-              fullName={submittedRecord.fullName}
-              city={submittedRecord.city}
-              state={submittedRecord.state}
-              financialYear={submittedRecord.financialYear}
-              citizenProposal={submittedRecord.citizenProposal}
-            />
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <button
               onClick={() => onDownloadPdf(submittedRecord)}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-6 py-3 rounded-xl shadow-lg shadow-emerald-500/20 transition active:scale-95 text-sm cursor-pointer"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-6 py-3 rounded-xl shadow-lg shadow-emerald-500/20 transition active:scale-95 text-xs cursor-pointer"
             >
               <Download className="w-4 h-4" />
-              <span>Download Official PDF Certificate</span>
+              <span>Download Participation Certificate</span>
             </button>
 
             <button
               onClick={onGoToDashboard}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 bg-[#1E293B] hover:bg-[#334155] text-[#E2E8F0] font-semibold px-6 py-3 rounded-xl transition text-sm border border-[#334155] cursor-pointer"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 bg-[#1E293B] hover:bg-[#334155] text-white font-semibold px-6 py-3 rounded-xl transition border border-[#334155] text-xs cursor-pointer"
             >
               <FileCheck2 className="w-4 h-4" />
-              <span>View in Historical Dashboard</span>
+              <span>Return to Dashboard</span>
             </button>
 
             <button
@@ -402,7 +367,7 @@ export const TaxFilingForm: React.FC<TaxFilingFormProps> = ({
               }}
               className="w-full sm:w-auto text-[#94A3B8] hover:text-[#E2E8F0] text-xs font-medium px-4 py-2 cursor-pointer"
             >
-              File Another Year
+              Record Another Year
             </button>
           </div>
         </div>
@@ -413,17 +378,22 @@ export const TaxFilingForm: React.FC<TaxFilingFormProps> = ({
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Intro Banner */}
-      <div className="bg-[#0F172A] text-white rounded-2xl p-6 sm:p-8 mb-8 shadow-xl border border-[#1E293B]">
-        <div className="max-w-3xl">
-          <div className="flex items-center gap-2 text-emerald-400 text-xs font-bold uppercase tracking-wider mb-2">
-            <Sliders className="w-4 h-4" />
-            <span>Participatory Democracy & Public Budget Allocation</span>
+      <div className="bg-[#0F172A] text-white rounded-2xl p-6 sm:p-8 mb-8 shadow-xl border border-[#1E293B] space-y-3">
+        <div className="max-w-3xl space-y-2">
+          <div className="flex items-center gap-2 flex-wrap text-xs">
+            <span className="inline-flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/25 px-3 py-1 rounded-full text-emerald-400 font-bold uppercase tracking-wider">
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>DPDP Act 2023 & Rules 2025 Compliant</span>
+            </span>
+            <span className="inline-flex items-center gap-1.5 bg-slate-800 border border-slate-700 px-3 py-1 rounded-full text-slate-300 font-semibold text-[11px]">
+              Independent Civic Survey (Non-Governmental)
+            </span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight font-serif mb-2 text-[#E2E8F0]">
-            Citizen Tax Filing & Public Investment Allocator
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight font-serif text-[#E2E8F0]">
+            Civic Tax Allocation & Participatory Budget Survey
           </h1>
           <p className="text-sm sm:text-base text-[#94A3B8] leading-relaxed">
-            Specify your annual tax contribution, record your identity details (PAN & Aadhaar with secure masking), and directly designate how public funds should be prioritized across <strong className="text-[#E2E8F0]">Infrastructure, Healthcare, Education, Clean Energy, and Defense</strong>.
+            Express how public tax revenues should ideally be allocated across <strong className="text-[#E2E8F0]">Infrastructure, Healthcare, Education, Clean Energy, and Science</strong>. As an independent civic technology platform, we are <strong>not affiliated with the Government of India or the Income Tax Department</strong>. We adhere to strict data minimization — <strong className="text-emerald-400">no PAN or Aadhaar card details are ever requested or stored</strong>.
           </p>
         </div>
       </div>
@@ -442,7 +412,7 @@ export const TaxFilingForm: React.FC<TaxFilingFormProps> = ({
           <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
             activeStep === 1 ? 'bg-emerald-500 text-slate-950' : 'bg-[#1E293B] text-[#94A3B8]'
           }`}>1</span>
-          <span>Citizen Identity</span>
+          <span>Participant Identity</span>
         </button>
 
         <div className="w-6 h-px bg-[#1E293B]"></div>
@@ -461,7 +431,7 @@ export const TaxFilingForm: React.FC<TaxFilingFormProps> = ({
           <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
             activeStep === 2 ? 'bg-emerald-500 text-slate-950' : 'bg-[#1E293B] text-[#94A3B8]'
           }`}>2</span>
-          <span>Tax & Financial Year</span>
+          <span>Fiscal Year & Tax Pool</span>
         </button>
 
         <div className="w-6 h-px bg-[#1E293B]"></div>
@@ -480,7 +450,7 @@ export const TaxFilingForm: React.FC<TaxFilingFormProps> = ({
           <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
             activeStep === 3 ? 'bg-emerald-500 text-slate-950' : 'bg-[#1E293B] text-[#94A3B8]'
           }`}>3</span>
-          <span>Budget Allocation & Charts</span>
+          <span>Budget Allocation & Insights</span>
         </button>
       </div>
 
@@ -492,20 +462,23 @@ export const TaxFilingForm: React.FC<TaxFilingFormProps> = ({
               <div>
                 <h2 className="text-lg font-bold text-[#E2E8F0] flex items-center gap-2">
                   <User className="w-5 h-5 text-emerald-400" />
-                  Step 1: Citizen Identification & Demographics
+                  Step 1: Participant Identity & Demographics
                 </h2>
                 <p className="text-xs text-[#94A3B8]">
-                  Required for official annual tax certification and demographic civic consensus.
+                  Used to generate your participatory certificate and demographic consensus summaries.
                 </p>
               </div>
               <span className="text-xs font-semibold text-[#64748B]">Section 1 of 3</span>
             </div>
 
+            {/* Pre-Collection Statutory DPDP Notice */}
+            <PreCollectionPrivacyNotice defaultExpanded={false} />
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
               {/* Full Name */}
               <div>
                 <label className="block text-xs font-semibold text-[#94A3B8] uppercase tracking-wider mb-1">
-                  Full Name (As on PAN/Aadhaar) *
+                  Full Name *
                 </label>
                 <input
                   type="text"
@@ -547,7 +520,7 @@ export const TaxFilingForm: React.FC<TaxFilingFormProps> = ({
                   type="text"
                   value={profession}
                   onChange={(e) => setProfession(e.target.value)}
-                  placeholder="e.g. Senior Software Engineer, Doctor, Teacher"
+                  placeholder="e.g. Senior Software Engineer, Doctor, Educator"
                   className={`w-full px-3.5 py-2.5 rounded-lg border text-sm bg-[#0A0B0D] text-[#E2E8F0] focus:outline-none focus:ring-2 placeholder:text-[#64748B] ${
                     errors.profession ? 'border-rose-400 focus:ring-rose-200' : 'border-[#1E293B] focus:border-emerald-500 focus:ring-emerald-500/30'
                   }`}
@@ -558,7 +531,7 @@ export const TaxFilingForm: React.FC<TaxFilingFormProps> = ({
               {/* Email */}
               <div>
                 <label className="block text-xs font-semibold text-[#94A3B8] uppercase tracking-wider mb-1">
-                  Email Address (For PDF Certificate Delivery) *
+                  Email Address *
                 </label>
                 <input
                   type="email"
@@ -575,7 +548,7 @@ export const TaxFilingForm: React.FC<TaxFilingFormProps> = ({
               {/* Phone */}
               <div>
                 <label className="block text-xs font-semibold text-[#94A3B8] uppercase tracking-wider mb-1">
-                  Mobile Phone Number *
+                  Mobile Phone Number (Optional)
                 </label>
                 <input
                   type="tel"
@@ -587,48 +560,6 @@ export const TaxFilingForm: React.FC<TaxFilingFormProps> = ({
                   }`}
                 />
                 {errors.phone && <p className="text-xs text-rose-400 mt-1">{errors.phone}</p>}
-              </div>
-
-              {/* PAN Number */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wider">
-                    PAN Card (10 Digits) *
-                  </label>
-                  <span className="text-[11px] text-[#64748B]">Masked on export</span>
-                </div>
-                <input
-                  type="text"
-                  maxLength={10}
-                  value={panNumber}
-                  onChange={(e) => setPanNumber(e.target.value.toUpperCase())}
-                  placeholder="e.g. ABCDE1234F"
-                  className={`w-full font-mono uppercase px-3.5 py-2.5 rounded-lg border text-sm bg-[#0A0B0D] text-[#E2E8F0] focus:outline-none focus:ring-2 placeholder:text-[#64748B] ${
-                    errors.panNumber ? 'border-rose-400 focus:ring-rose-200' : 'border-[#1E293B] focus:border-emerald-500 focus:ring-emerald-500/30'
-                  }`}
-                />
-                {errors.panNumber && <p className="text-xs text-rose-400 mt-1">{errors.panNumber}</p>}
-              </div>
-
-              {/* Aadhaar Number */}
-              <div className="sm:col-span-2">
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wider">
-                    Aadhaar Number (12 Digits) *
-                  </label>
-                  <span className="text-[11px] text-emerald-400 font-medium">Auto-formatted & Protected</span>
-                </div>
-                <input
-                  type="text"
-                  maxLength={14}
-                  value={formatAadhaarInput(aadhaarNumber)}
-                  onChange={(e) => setAadhaarNumber(e.target.value.replace(/\s+/g, ''))}
-                  placeholder="e.g. 1234 5678 9012"
-                  className={`w-full font-mono tracking-wider px-3.5 py-2.5 rounded-lg border text-sm bg-[#0A0B0D] text-[#E2E8F0] focus:outline-none focus:ring-2 placeholder:text-[#64748B] ${
-                    errors.aadhaarNumber ? 'border-rose-400 focus:ring-rose-200' : 'border-[#1E293B] focus:border-emerald-500 focus:ring-emerald-500/30'
-                  }`}
-                />
-                {errors.aadhaarNumber && <p className="text-xs text-rose-400 mt-1">{errors.aadhaarNumber}</p>}
               </div>
 
               {/* State & City */}
@@ -647,7 +578,7 @@ export const TaxFilingForm: React.FC<TaxFilingFormProps> = ({
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-2 sm:col-span-2">
                 <div>
                   <label className="block text-xs font-semibold text-[#94A3B8] uppercase tracking-wider mb-1">
                     City / Town *
@@ -656,7 +587,7 @@ export const TaxFilingForm: React.FC<TaxFilingFormProps> = ({
                     type="text"
                     value={city}
                     onChange={(e) => setCity(e.target.value)}
-                    placeholder="Bengaluru"
+                    placeholder="e.g. Bengaluru"
                     className="w-full px-3 py-2.5 rounded-lg border border-[#1E293B] text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 bg-[#0A0B0D] text-[#E2E8F0] placeholder:text-[#64748B]"
                   />
                 </div>
@@ -685,7 +616,7 @@ export const TaxFilingForm: React.FC<TaxFilingFormProps> = ({
                 }}
                 className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-6 py-2.5 rounded-xl shadow-md shadow-emerald-500/20 transition active:scale-95 text-sm cursor-pointer"
               >
-                <span>Continue to Tax Details</span>
+                <span>Continue to Fiscal Details</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>
@@ -698,11 +629,11 @@ export const TaxFilingForm: React.FC<TaxFilingFormProps> = ({
             <div className="flex items-center justify-between border-b border-[#1E293B] pb-4">
               <div>
                 <h2 className="text-lg font-bold text-[#E2E8F0] flex items-center gap-2">
-                  <CreditCard className="w-5 h-5 text-emerald-400" />
-                  Step 2: Financial Year & Tax Paid
+                  <DollarSign className="w-5 h-5 text-emerald-400" />
+                  Step 2: Financial Year & Tax Contribution Pool
                 </h2>
                 <p className="text-xs text-[#94A3B8]">
-                  Select the financial year you are filing for and your direct tax contribution.
+                  Select the assessment year and enter your estimated tax paid amount to simulate budgetary allocation.
                 </p>
               </div>
               <span className="text-xs font-semibold text-[#64748B]">Section 2 of 3</span>
@@ -712,7 +643,7 @@ export const TaxFilingForm: React.FC<TaxFilingFormProps> = ({
               {/* Financial Year Selection Pills */}
               <div>
                 <label className="block text-xs font-semibold text-[#94A3B8] uppercase tracking-wider mb-2">
-                  Select Assessment / Financial Year *
+                  Select Financial Year *
                 </label>
                 <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
                   {FINANCIAL_YEARS.map((fy) => (
@@ -760,7 +691,7 @@ export const TaxFilingForm: React.FC<TaxFilingFormProps> = ({
 
                 <div>
                   <label className="block text-xs font-semibold text-[#94A3B8] uppercase tracking-wider mb-1">
-                    Total Income Tax Paid (INR ₹) *
+                    Estimated Annual Income Tax Paid (INR ₹) *
                   </label>
                   <div className="relative">
                     <span className="absolute left-3.5 top-2.5 text-emerald-400 font-bold text-sm">₹</span>
@@ -794,16 +725,16 @@ export const TaxFilingForm: React.FC<TaxFilingFormProps> = ({
                   </div>
                   <div className="h-8 w-px bg-[#1E293B] hidden sm:block"></div>
                   <div>
-                    <span className="text-[#94A3B8] block">Monthly Civic Contribution:</span>
+                    <span className="text-[#94A3B8] block">Monthly Tax Equivalent:</span>
                     <span className="text-base font-bold text-emerald-400">
                       {formatCurrencyINR(Math.round(Number(taxPaid) / 12))} / month
                     </span>
                   </div>
                   <div className="h-8 w-px bg-[#1E293B] hidden sm:block"></div>
                   <div>
-                    <span className="text-[#94A3B8] block">Demographic Status:</span>
+                    <span className="text-[#94A3B8] block">Participation Status:</span>
                     <span className="text-base font-bold text-emerald-400">
-                      Top Decile Nation Contributor
+                      Verified Survey Contributor
                     </span>
                   </div>
                 </div>
@@ -846,7 +777,7 @@ export const TaxFilingForm: React.FC<TaxFilingFormProps> = ({
                     Step 3: Direct Your Tax Allocation across Civic Sectors
                   </h2>
                   <p className="text-xs text-[#94A3B8] mt-0.5">
-                    How should the government invest your <strong className="text-emerald-400 font-mono">{formatCurrencyINR(currentTaxAmount)}</strong> tax contribution? Adjust the percentage sliders below.
+                    How should public expenditure prioritize your <strong className="text-emerald-400 font-mono">{formatCurrencyINR(currentTaxAmount)}</strong> tax contribution? Adjust percentage sliders below.
                   </p>
                 </div>
 
@@ -1163,23 +1094,23 @@ export const TaxFilingForm: React.FC<TaxFilingFormProps> = ({
                   </div>
                   <label htmlFor="tax-filing-consent" className="text-xs text-white leading-relaxed cursor-pointer select-none">
                     <span className="font-bold text-emerald-400 block mb-0.5">
-                      National Civic Transparency & Public Growth Declaration
+                      DPDP Act 2023 Survey Purpose Declaration & Cookie Agreement
                     </span>
-                    I hereby authorize and consent to share my verified tax allocation preferences to the CivicTax public consensus ledger. I understand that this data will be aggregated anonymously to demonstrate citizen budgetary priorities and support evidence-based public growth.
+                    I hereby confirm that this information and budget allocation preference is provided <strong>strictly for civic survey and public opinion modeling purposes, and NOT for any personal commercial or official government tax assessment use</strong>. I agree to these terms & conditions and authorize storing my survey consent preference in browser cookies.
                   </label>
                 </div>
 
-                <div className="pt-2 border-t border-[#1E293B] flex items-center justify-between text-[11px] text-[#94A3B8]">
+                <div className="pt-2 border-t border-[#1E293B] flex items-center justify-between text-[11px] text-[#94A3B8] flex-wrap gap-2">
                   <span className="flex items-center gap-1.5 text-slate-300">
                     <Lock className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>Protected by SHA-256 cryptographic verification receipt</span>
+                    <span>Survey-Only Data • Stored in Cookies • DPDP Act 2023 Protected</span>
                   </span>
                   <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                     dataSharingConsent
                       ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                       : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
                   }`}>
-                    {dataSharingConsent ? '✓ Public Growth Consent Active' : '⚠ Consent Required'}
+                    {dataSharingConsent ? '✓ Survey & Cookie Consent Active' : '⚠ Consent Required'}
                   </span>
                 </div>
               </div>
@@ -1191,7 +1122,7 @@ export const TaxFilingForm: React.FC<TaxFilingFormProps> = ({
                   onClick={() => setActiveStep(2)}
                   className="text-[#94A3B8] hover:text-[#E2E8F0] text-xs font-semibold px-4 py-2 cursor-pointer"
                 >
-                  Back to Tax Details
+                  Back to Fiscal Details
                 </button>
 
                 <div className="flex items-center gap-3">
@@ -1201,7 +1132,7 @@ export const TaxFilingForm: React.FC<TaxFilingFormProps> = ({
                     className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-8 py-3 rounded-xl shadow-lg shadow-emerald-500/20 transition active:scale-95 text-sm cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     <CheckCircle2 className="w-4 h-4" />
-                    <span>{dataSharingConsent ? 'Save & Confirm Annual Tax Allocation' : 'Agree to Consent to Submit'}</span>
+                    <span>{dataSharingConsent ? 'Confirm & Record Civic Budget Survey' : 'Grant DPDP Consent to Submit'}</span>
                   </button>
                 </div>
               </div>
