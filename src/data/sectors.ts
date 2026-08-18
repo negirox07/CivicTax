@@ -18,6 +18,13 @@ export const SECTOR_DEFINITIONS: Record<SectorId, SectorDefinition> = {
       label: 'Meters of Paved Highway & Drainage',
       description: 'Paves and reinforces high-grade public road with solar streetlights.',
     },
+    scope: 'Construction and modernization of national highway networks, high-speed rail corridors, multimodal freight logistics, smart city drainage, regional metro transits, and aviation infrastructure.',
+    socioEconomicImpact: {
+      overview: 'Reduces national logistic costs from 14% to under 8% of GDP, accelerating industrial corridor growth and regional trade.',
+      macroBenefit: 'Unlocks ₹3.2x multiplier on long-term GDP per rupee spent, boosting manufacturing competitiveness and supply chain resilience.',
+      humanWelfareGain: 'Saves 45+ million daily commuting hours, connects remote rural towns to commercial job hubs, and reduces transit fatalities through engineered safety.',
+      policyPrograms: ['PM Gati Shakti Masterplan', 'Bharatmala & Sagarmala', 'National Rail Plan 2030', 'AMRUT Urban Drainage'],
+    },
   },
   education: {
     id: 'education',
@@ -35,6 +42,13 @@ export const SECTOR_DEFINITIONS: Record<SectorId, SectorDefinition> = {
       unitCost: 6500,
       label: 'Student Annual Scholarship & Book Kits',
       description: 'Funds full tuition kits, digital tablets, and school supplies for one student for a year.',
+    },
+    scope: 'Modernization of government school classrooms, installation of AI and STEM innovation labs, university research funding, and vocational upskilling for youth.',
+    socioEconomicImpact: {
+      overview: 'Bridges the digital divide and elevates national human capital for a $5-trillion knowledge economy.',
+      macroBenefit: 'Increases formal workforce productivity and lifts average lifetime earnings by 9.7% per additional year of quality schooling.',
+      humanWelfareGain: 'Boosts female workforce participation, prevents socio-economic dropout cycles, and equips tier-2/tier-3 youth with global digital competencies.',
+      policyPrograms: ['National Education Policy (NEP)', 'Samagra Shiksha Abhiyan', 'PM SHRI Schools', 'Skill India Digital'],
     },
   },
   healthcare: {
@@ -54,6 +68,13 @@ export const SECTOR_DEFINITIONS: Record<SectorId, SectorDefinition> = {
       label: 'Free Subsidized Diagnostic Treatments',
       description: 'Delivers full health diagnostics, lab tests, and essential medications to low-income families.',
     },
+    scope: 'Primary Health Centers (PHCs), district super-specialty hospital infrastructure, subsidized chronic medicine distribution, trauma networks, and maternal-child health services.',
+    socioEconomicImpact: {
+      overview: 'Guarantees universal health coverage and protects vulnerable households against medical bankruptcy.',
+      macroBenefit: 'Drastically reduces catastrophic out-of-pocket health expenditure (which drives 50+ million into poverty annually) while building pandemic resilience.',
+      humanWelfareGain: 'Reduces infant and maternal mortality, expands life expectancy, and delivers dignified critical emergency care within the golden hour.',
+      policyPrograms: ['Ayushman Bharat (PM-JAY)', 'PM-ABHIM Health Infrastructure', 'National Health Mission', 'Jan Aushadhi Scheme'],
+    },
   },
   clean_energy: {
     id: 'clean_energy',
@@ -71,6 +92,13 @@ export const SECTOR_DEFINITIONS: Record<SectorId, SectorDefinition> = {
       unitCost: 4500,
       label: 'Clean Solar kWh Capacity Installed',
       description: 'Installs renewable solar capacity cutting 1.2 metric tons of carbon emissions annually.',
+    },
+    scope: 'Grid-scale solar parks, rural rooftop microgrids, green hydrogen production, river basin ecological remediation, urban solid waste circularity, and EV public transport.',
+    socioEconomicImpact: {
+      overview: 'Decarbonizes national power grids while slashing fossil fuel import bills and smog-induced respiratory illnesses.',
+      macroBenefit: 'Shields the national economy from global energy volatility, creates 3+ million green manufacturing jobs, and meets COP28 net-zero targets.',
+      humanWelfareGain: 'Purifies air and drinking water in 130+ non-attainment cities, saving thousands of respiratory hospitalizations and recharging drying water tables.',
+      policyPrograms: ['PM-Surya Ghar Muft Bijli Yojana', 'National Green Hydrogen Mission', 'PM-KUSUM Scheme', 'National Clean Air Programme'],
     },
   },
   defense_security: {
@@ -90,6 +118,13 @@ export const SECTOR_DEFINITIONS: Record<SectorId, SectorDefinition> = {
       label: 'Advanced Tactical & Cyber Safety Kits',
       description: 'Provides indigenous safety equipment, encrypted communications, and protective gear.',
     },
+    scope: 'Modernization of armed forces hardware, border surveillance radar and UAVs, critical cyber defense command centers, and civil disaster quick response forces.',
+    socioEconomicImpact: {
+      overview: 'Safeguards territorial sovereignty, maritime trade lanes, and financial/power digital grids against geopolitical and cyber threats.',
+      macroBenefit: 'Spurs indigenous defense manufacturing (Aatmanirbhar Bharat), reducing foreign exchange outflows and spawning high-tech aerospace spin-offs.',
+      humanWelfareGain: 'Protects citizen personal data and banking systems from cyber fraud, while ensuring rapid life-saving mobilization during natural disasters.',
+      policyPrograms: ['Make in India Defense Production', 'National Cyber Security Strategy', 'Border Area Development', 'NDRF Modernization'],
+    },
   },
   agriculture_rural: {
     id: 'agriculture_rural',
@@ -107,6 +142,13 @@ export const SECTOR_DEFINITIONS: Record<SectorId, SectorDefinition> = {
       unitCost: 8000,
       label: 'Farmer Solar Micro-Irrigation Days',
       description: 'Powers zero-cost drip irrigation and pest control coverage across 2 acres of arable farmland.',
+    },
+    scope: 'Solar drip-irrigation networks, farm-gate cold storage chains, organic soil fertility nutrients, Farmer Producer Organizations (FPOs), and digital crop insurance.',
+    socioEconomicImpact: {
+      overview: 'Stabilizes rural agrarian livelihoods, reduces post-harvest food waste, and ensures long-term national food self-sufficiency.',
+      macroBenefit: 'Cuts post-harvest crop spoilage (currently valued at ₹92,000 Cr/yr) and stabilizes food inflation across domestic consumer markets.',
+      humanWelfareGain: 'Doubles real farm income for smallholders, prevents seasonal farmer debt distress, and expands all-weather rural road access to markets.',
+      policyPrograms: ['PM Krishi Sinchayee Yojana', 'PM Fasal Bima Yojana', 'e-NAM Digital Crop Markets', 'Agriculture Infrastructure Fund'],
     },
   },
   science_tech: {
@@ -126,6 +168,13 @@ export const SECTOR_DEFINITIONS: Record<SectorId, SectorDefinition> = {
       label: 'Research Computing & Innovation Hours',
       description: 'Sponsors high-performance computing clusters and lab reagents for indigenous university scientists.',
     },
+    scope: 'Space exploration missions, quantum computing and semiconductor labs, public digital infrastructure (UPI, ONDC, DigiLocker), and biotechnology incubators.',
+    socioEconomicImpact: {
+      overview: 'Propels India into the top tier of global technological innovation and patent generation.',
+      macroBenefit: 'Powers zero-cost digital transactions for 350+ million citizens, unlocking massive efficiency gains in commerce, banking, and governance.',
+      humanWelfareGain: 'Enables high-resolution weather forecasting for disaster prevention, affordable biotech drugs, and high-value research careers for graduates.',
+      policyPrograms: ['National Quantum Mission', 'India Semiconductor Mission', 'ISRO Chandrayaan & Gaganyaan', 'Digital Public Infrastructure (DPI)'],
+    },
   },
   social_welfare: {
     id: 'social_welfare',
@@ -143,6 +192,13 @@ export const SECTOR_DEFINITIONS: Record<SectorId, SectorDefinition> = {
       unitCost: 3500,
       label: 'Nutritional Care & Senior Support Packages',
       description: 'Provides 3 months of essential nutrition, vitamin supplements, and elder support aids.',
+    },
+    scope: 'Pucca affordable housing, universal child nutrition in Anganwadis, senior citizen pensions, universal disability accessibility, and women economic empowerment.',
+    socioEconomicImpact: {
+      overview: 'Constructs an unshakeable social safety floor, accelerating the eradication of multidimensional poverty.',
+      macroBenefit: 'Stunts generational cycles of severe child malnutrition (saving future workforce cognitive capital) and increases inclusive economic participation.',
+      humanWelfareGain: 'Provides dignity of permanent housing to homeless families, guarantees pensions for elderly citizens, and ensures accessible public spaces for Divyangjan.',
+      policyPrograms: ['PM Awas Yojana (PMAY)', 'Mission Poshan 2.0', 'National Social Assistance (NSAP)', 'Accessible India Campaign (Sugamya Bharat)'],
     },
   },
 };

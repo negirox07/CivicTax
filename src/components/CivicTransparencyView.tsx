@@ -125,11 +125,54 @@ export const CivicTransparencyView: React.FC = () => {
               <XAxis dataKey="sector" tick={{ fontSize: 11, fill: '#94A3B8' }} axisLine={{ stroke: '#1E293B' }} />
               <YAxis tickFormatter={(v) => `${v}%`} tick={{ fontSize: 10, fill: '#94A3B8' }} axisLine={{ stroke: '#1E293B' }} />
               <RechartsTooltip
-                formatter={(val: any, name: any) => [
-                  `${val}%`,
-                  name === 'citizenVoice' ? 'Citizen Consensus' : 'Govt Union Budget',
-                ]}
-                contentStyle={{ borderRadius: '12px', backgroundColor: '#0A0B0D', borderColor: '#1E293B', color: '#E2E8F0' }}
+                content={({ active, payload, label }) => {
+                  if (!active || !payload || !payload.length) return null;
+                  const dataPoint = payload[0]?.payload;
+                  return (
+                    <div className="bg-[#0A0B0D] border border-[#334155] rounded-xl p-3.5 shadow-2xl text-xs space-y-2 min-w-[220px]">
+                      <div className="font-bold text-white border-b border-[#1E293B] pb-1.5 flex items-center justify-between">
+                        <span>{dataPoint?.sector || label}</span>
+                        <span className="text-[10px] font-mono text-emerald-400">National Consensus</span>
+                      </div>
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between gap-3 text-[11px]">
+                          <span className="flex items-center gap-1.5 text-emerald-400 font-medium">
+                            <span className="w-2.5 h-2.5 rounded-xs bg-emerald-500"></span>
+                            <span>Citizen Consensus:</span>
+                          </span>
+                          <span className="font-mono font-bold text-emerald-400 text-sm">
+                            {dataPoint?.citizenVoice}%
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between gap-3 text-[11px]">
+                          <span className="flex items-center gap-1.5 text-[#94A3B8] font-medium">
+                            <span className="w-2.5 h-2.5 rounded-xs bg-[#475569]"></span>
+                            <span>Official Union Budget:</span>
+                          </span>
+                          <span className="font-mono font-bold text-[#E2E8F0] text-sm">
+                            {dataPoint?.govActual}%
+                          </span>
+                        </div>
+                      </div>
+                      {dataPoint && (
+                        <div className="pt-1.5 border-t border-[#1E293B] flex items-center justify-between text-[10px] font-mono">
+                          <span className="text-[#94A3B8]">Fiscal Delta:</span>
+                          <span
+                            className={`font-bold ${
+                              dataPoint.deltaType === 'deficit'
+                                ? 'text-emerald-400'
+                                : dataPoint.deltaType === 'surplus'
+                                ? 'text-amber-400'
+                                : 'text-slate-400'
+                            }`}
+                          >
+                            {dataPoint.delta} {dataPoint.deltaType === 'deficit' ? '(Demand Lead)' : dataPoint.deltaType === 'surplus' ? '(Budget Lead)' : ''}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                }}
               />
               <Bar dataKey="citizenVoice" name="Citizen Consensus" fill="#10b981" radius={[4, 4, 0, 0]} />
               <Bar dataKey="govActual" name="Govt Budget" fill="#475569" radius={[4, 4, 0, 0]} />

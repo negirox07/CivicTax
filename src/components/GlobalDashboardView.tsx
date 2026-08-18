@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { motion } from 'motion/react';
 import {
   Landmark,
   ShieldCheck,
@@ -53,6 +54,8 @@ import {
   SectorConsensusItem,
   syncLocalRecordsToSupabase,
 } from '../utils/dataService';
+import { SectorSparkline } from './SectorSparkline';
+import { DualAxisBudgetTrendChart } from './DualAxisBudgetTrendChart';
 import {
   isSupabaseActive,
   isSupabaseConfigured,
@@ -752,6 +755,18 @@ export const GlobalDashboardView: React.FC<GlobalDashboardViewProps> = ({
                           {sectorAStats?.deltaPct > 0 ? `+${sectorAStats?.deltaPct}% Demand` : `${sectorAStats?.deltaPct}%`}
                         </span>
                       </div>
+                      {sectorAStats?.history3Years && sectorAStats.history3Years.length > 0 && (
+                        <div className="mt-2 pt-2 border-t border-[#1E293B]">
+                          <SectorSparkline
+                            data={sectorAStats.history3Years}
+                            color={sectorAStats.chartColor}
+                            trendPct={sectorAStats.threeYearTrendPct}
+                            height={28}
+                            showLabels={false}
+                            showTrendBadge={true}
+                          />
+                        </div>
+                      )}
                     </div>
 
                     <div
@@ -782,6 +797,18 @@ export const GlobalDashboardView: React.FC<GlobalDashboardViewProps> = ({
                           {sectorBStats?.deltaPct > 0 ? `+${sectorBStats?.deltaPct}% Demand` : `${sectorBStats?.deltaPct}%`}
                         </span>
                       </div>
+                      {sectorBStats?.history3Years && sectorBStats.history3Years.length > 0 && (
+                        <div className="mt-2 pt-2 border-t border-[#1E293B]">
+                          <SectorSparkline
+                            data={sectorBStats.history3Years}
+                            color={sectorBStats.chartColor}
+                            trendPct={sectorBStats.threeYearTrendPct}
+                            height={28}
+                            showLabels={false}
+                            showTrendBadge={true}
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -820,6 +847,9 @@ export const GlobalDashboardView: React.FC<GlobalDashboardViewProps> = ({
               </div>
             </div>
           </div>
+
+          {/* DUAL-AXIS 3-YEAR HISTORICAL COMPARISON CHART */}
+          <DualAxisBudgetTrendChart records={records} stats={stats} />
 
           {/* Main Comparison Chart: Citizen Consensus Demand vs Statutory Union Budget */}
           <div className="bg-[#0F172A] rounded-2xl border border-[#1E293B] p-6 sm:p-8 shadow-xl">
@@ -863,15 +893,70 @@ export const GlobalDashboardView: React.FC<GlobalDashboardViewProps> = ({
                     axisLine={{ stroke: '#1E293B' }}
                   />
                   <RechartsTooltip
-                    formatter={(val: any, name: any) => [
-                      `${val}%`,
-                      name === 'citizenAvgPct' ? 'Citizen Average Consensus' : 'Govt Union Budget Baseline',
-                    ]}
-                    contentStyle={{
-                      borderRadius: '12px',
-                      backgroundColor: '#0A0B0D',
-                      borderColor: '#1E293B',
-                      color: '#E2E8F0',
+                    isAnimationActive={true}
+                    animationDuration={200}
+                    animationEasing="ease-out"
+                    cursor={{ fill: 'rgba(51, 65, 85, 0.2)', radius: 6 }}
+                    content={({ active, payload, label }) => {
+                      if (!active || !payload || !payload.length) return null;
+                      const dataPoint = payload[0]?.payload;
+                      return (
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.95, y: 4 }}
+                          animate={{ opacity: 1, scale: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.95, y: 4 }}
+                          transition={{ duration: 0.18, ease: 'easeOut' }}
+                          className="bg-[#0A0B0D]/95 backdrop-blur-md border border-[#334155] rounded-xl p-3.5 shadow-2xl text-xs space-y-2 min-w-[220px]"
+                          style={{
+                            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.8), 0 8px 10px -6px rgba(0, 0, 0, 0.8), 0 0 15px -3px rgba(16, 185, 129, 0.15)',
+                          }}
+                        >
+                          <div className="font-bold text-white border-b border-[#1E293B] pb-1.5 flex items-center justify-between">
+                            <span>{dataPoint?.name || label}</span>
+                            <span className="text-[10px] font-mono text-emerald-400">Consensus Matrix</span>
+                          </div>
+                          <div className="space-y-1.5">
+                            <div className="flex items-center justify-between gap-3 text-[11px]">
+                              <span className="flex items-center gap-1.5 text-emerald-400 font-medium">
+                                <span className="w-2.5 h-2.5 rounded-xs bg-emerald-500"></span>
+                                <span>Citizen Consensus:</span>
+                              </span>
+                              <span className="font-mono font-bold text-emerald-400 text-sm">
+                                {dataPoint?.citizenAvgPct}%
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between gap-3 text-[11px]">
+                              <span className="flex items-center gap-1.5 text-[#94A3B8] font-medium">
+                                <span className="w-2.5 h-2.5 rounded-xs bg-[#475569]"></span>
+                                <span>Govt Union Budget:</span>
+                              </span>
+                              <span className="font-mono font-bold text-[#E2E8F0] text-sm">
+                                {dataPoint?.govBenchmarkPct}%
+                              </span>
+                            </div>
+                          </div>
+                          {dataPoint && (
+                            <div className="pt-1.5 border-t border-[#1E293B] flex items-center justify-between text-[10px] font-mono">
+                              <span className="text-[#94A3B8]">Policy Gap Delta:</span>
+                              <span
+                                className={`font-bold ${
+                                  dataPoint.deltaPct > 0
+                                    ? 'text-emerald-400'
+                                    : dataPoint.deltaPct < 0
+                                    ? 'text-amber-400'
+                                    : 'text-slate-400'
+                                }`}
+                              >
+                                {dataPoint.deltaPct > 0
+                                  ? `+${dataPoint.deltaPct}% (Demand Surplus)`
+                                  : dataPoint.deltaPct < 0
+                                  ? `${dataPoint.deltaPct}% (Demand Deficit)`
+                                  : 'Statutory Aligned'}
+                              </span>
+                            </div>
+                          )}
+                        </motion.div>
+                      );
                     }}
                   />
                   <Bar dataKey="citizenAvgPct" name="Citizen Consensus" fill="#10b981" radius={[4, 4, 0, 0]} />
@@ -1068,6 +1153,18 @@ export const GlobalDashboardView: React.FC<GlobalDashboardViewProps> = ({
                       ></div>
                     </div>
                   </div>
+
+                  {/* 3-Year Historical Shift Sparkline */}
+                  {sec.history3Years && sec.history3Years.length > 0 && (
+                    <SectorSparkline
+                      data={sec.history3Years}
+                      color={sec.chartColor}
+                      trendPct={sec.threeYearTrendPct}
+                      height={40}
+                      showLabels={true}
+                      showTrendBadge={true}
+                    />
+                  )}
 
                   {/* Subcategories tags */}
                   <div className="flex flex-wrap gap-1.5 pt-2 border-t border-[#1E293B]">

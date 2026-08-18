@@ -29,6 +29,7 @@ import confetti from 'canvas-confetti';
 import { TaxRecord, SectorAllocations, SectorId, CitizenUser } from '../types';
 import { SECTOR_DEFINITIONS, ALL_SECTOR_IDS, PRESET_ALLOCATIONS } from '../data/sectors';
 import { ImpactInsights } from './ImpactInsights';
+import { SectorImpactTooltip } from './SectorImpactTooltip';
 import {
   formatCurrencyINR,
   formatCompactINR,
@@ -866,7 +867,10 @@ export const TaxFilingForm: React.FC<TaxFilingFormProps> = ({
                               {renderSectorIcon(sec.iconName, 'w-4 h-4')}
                             </div>
                             <div>
-                              <div className="text-xs sm:text-sm font-bold text-[#E2E8F0]">{sec.name}</div>
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-xs sm:text-sm font-bold text-[#E2E8F0]">{sec.name}</span>
+                                <SectorImpactTooltip sector={sec} allocatedPct={pct} allocatedAmount={allocatedAmount} />
+                              </div>
                               <div className="text-[11px] text-[#94A3B8] hidden sm:block">{sec.description}</div>
                             </div>
                           </div>

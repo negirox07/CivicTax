@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   TrendingUp,
   Award,
@@ -43,6 +43,8 @@ import {
 import { TaxRecord, SectorId } from '../types';
 import { SECTOR_DEFINITIONS, ALL_SECTOR_IDS } from '../data/sectors';
 import { ImpactInsights } from './ImpactInsights';
+import { SectorSparkline } from './SectorSparkline';
+import { SectorHistoricalPoint } from '../utils/dataService';
 import {
   formatCurrencyINR,
   formatCompactINR,
@@ -173,6 +175,42 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       color: sec.chartColor,
     };
   }).filter((d) => d.value > 0);
+
+  // 3-Year Sector Historical Shift Mapping
+  const last3Years = ['2023-24', '2024-25', '2025-26'];
+  const sectorHistoricalMap = useMemo(() => {
+    const map: Record<
+      SectorId,
+      { points: SectorHistoricalPoint[]; trendPct: number }
+    > = {} as any;
+
+    ALL_SECTOR_IDS.forEach((secId) => {
+      const def = SECTOR_DEFINITIONS[secId];
+      const points: SectorHistoricalPoint[] = last3Years.map((fy) => {
+        const rec = records.find((r) => r.financialYear === fy);
+        const shortYear = fy.replace('20', '').replace('-20', '-');
+        const citizenPct = rec
+          ? Number(rec.allocations[secId]) || 0
+          : activeRecord.allocations[secId] || def.benchmarkPct;
+        return {
+          year: fy,
+          formattedYear: `FY ${fy}`,
+          shortYear,
+          citizenAvgPct: citizenPct,
+          govBenchmarkPct: def.benchmarkPct,
+        };
+      });
+
+      const trendPct =
+        points.length >= 2
+          ? Math.round((points[points.length - 1].citizenAvgPct - points[0].citizenAvgPct) * 10) / 10
+          : 0;
+
+      map[secId] = { points, trendPct };
+    });
+
+    return map;
+  }, [records, activeRecord]);
 
   // Comparison Data: Citizen vs National Benchmark for selected year
   const comparisonData = ALL_SECTOR_IDS.map((secId) => {
@@ -347,9 +385,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   axisLine={{ stroke: '#1E293B' }}
                 />
                 <RechartsTooltip
-                  formatter={(value: any) => [formatCurrencyINR(Number(value)), 'Amount']}
+                  formatter={(value: any, name: any) => [formatCurrencyINR(Number(value)), name]}
                   contentStyle={{
-                    backgroundColor: '#0F172A',
+                    backgroundColor: '#0A0B0D',
                     borderColor: '#334155',
                     borderRadius: '12px',
                     color: '#E2E8F0',
@@ -469,22 +507,156 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <XAxis dataKey="sector" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={{ stroke: '#1E293B' }} />
               <YAxis tickFormatter={(v) => `${v}%`} tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={{ stroke: '#1E293B' }} />
               <RechartsTooltip
-                formatter={(val: any, name: any) => [
-                  `${val}%`,
-                  name === 'citizenPref' ? 'Your Allocation' : 'Govt Benchmark',
-                ]}
-                contentStyle={{
-                  backgroundColor: '#0F172A',
-                  borderColor: '#334155',
-                  borderRadius: '12px',
-                  color: '#E2E8F0',
+                content={({ active, payload, label }) => {
+                  if (!active || !payload || !payload.length) return null;
+                  const dataPoint = payload[0]?.payload;
+                  return (
+                    <div className="bg-[#0A0B0D] border border-[#334155] rounded-xl p-3.5 shadow-2xl text-xs space-y-2 min-w-[220px]">
+                      <div className="font-bold text-white border-b border-[#1E293B] pb-1.5 flex items-center justify-between">
+                        <span>{dataPoint?.sector || label}</span>
+                        <span className="text-[10px] font-mono text-emerald-400">
+                          FY {activeRecord.financialYear}
+                        </span>
+                      </div>
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between gap-3 text-[11px]">
+                          <span className="flex items-center gap-1.5 text-emerald-400 font-medium">
+                            <span className="w-2.5 h-2.5 rounded-xs bg-emerald-500"></span>
+                            <span>Your Preference:</span>
+                          </span>
+                          <span className="font-mono font-bold text-emerald-400 text-sm">
+                            {dataPoint?.citizenPref}%
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between gap-3 text-[11px]">
+                          <span className="flex items-center gap-1.5 text-[#94A3B8] font-medium">
+                            <span className="w-2.5 h-2.5 rounded-xs bg-[#64748B]"></span>
+                            <span>Govt Benchmark:</span>
+                          </span>
+                          <span className="font-mono font-bold text-[#E2E8F0] text-sm">
+                            {dataPoint?.govBenchmark}%
+                          </span>
+                        </div>
+                      </div>
+                      {dataPoint && (
+                        <div className="pt-1.5 border-t border-[#1E293B] flex items-center justify-between text-[10px] font-mono">
+                          <span className="text-[#94A3B8]">Variance vs Govt:</span>
+                          <span
+                            className={`font-bold ${
+                              dataPoint.difference > 0
+                                ? 'text-emerald-400'
+                                : dataPoint.difference < 0
+                                ? 'text-amber-400'
+                                : 'text-slate-400'
+                            }`}
+                          >
+                            {dataPoint.difference > 0
+                              ? `+${dataPoint.difference}% (Above Baseline)`
+                              : dataPoint.difference < 0
+                              ? `${dataPoint.difference}% (Below Baseline)`
+                              : 'Aligned'}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  );
                 }}
-                itemStyle={{ color: '#E2E8F0' }}
               />
               <Bar dataKey="citizenPref" name="Your Allocation" fill="#10b981" radius={[4, 4, 0, 0]} />
               <Bar dataKey="govBenchmark" name="Govt Baseline" fill="#64748b" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Sector Allocation Breakdown & Historical 3-Year Shift Sparklines */}
+      <div className="bg-[#0F172A] rounded-2xl border border-[#1E293B] p-6 shadow-xl space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#1E293B] pb-4">
+          <div>
+            <div className="flex items-center gap-2 text-emerald-400 text-xs font-bold uppercase tracking-wider mb-1">
+              <TrendingUp className="w-4 h-4" />
+              <span>3-Year Fiscal Shift Analytics</span>
+            </div>
+            <h2 className="text-lg sm:text-xl font-bold font-serif text-[#E2E8F0]">
+              Sector Allocation Breakdown & 3-Year Historical Trends
+            </h2>
+            <p className="text-xs text-[#94A3B8] mt-0.5">
+              Visualizing your active fiscal distribution and multi-year priority shifts across all 8 development sectors.
+            </p>
+          </div>
+          <span className="text-xs font-mono font-bold text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/20 self-start sm:self-auto">
+            Active: FY {activeRecord.financialYear}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {ALL_SECTOR_IDS.map((secId) => {
+            const sec = SECTOR_DEFINITIONS[secId];
+            const allocPct = activeRecord.allocations[secId] || 0;
+            const inrAllocated = Math.round(((Number(activeRecord.taxPaid) || 0) * allocPct) / 100);
+            const history = sectorHistoricalMap[secId];
+
+            return (
+              <div
+                key={secId}
+                className="bg-[#0A0B0D] border border-[#1E293B] hover:border-[#334155] rounded-2xl p-4 flex flex-col justify-between transition shadow-md group space-y-3"
+              >
+                {/* Sector Card Header */}
+                <div>
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-8 h-8 rounded-lg flex items-center justify-center text-white shadow-xs"
+                        style={{ backgroundColor: sec.chartColor }}
+                      >
+                        {renderSectorIcon(sec.iconName, 'w-4 h-4')}
+                      </div>
+                      <div className="truncate">
+                        <span className="text-xs font-bold text-[#E2E8F0] block truncate">
+                          {sec.shortName}
+                        </span>
+                        <span className="text-[10px] text-[#64748B] block truncate">
+                          Gov: {sec.benchmarkPct}%
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="text-right shrink-0">
+                      <span className="text-sm font-mono font-bold text-emerald-400 block">
+                        {allocPct}%
+                      </span>
+                      <span className="text-[10px] text-[#94A3B8] font-mono block">
+                        {formatCompactINR(inrAllocated)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Single Bar Allocation Scale */}
+                  <div className="w-full h-1.5 bg-[#1E293B] rounded-full overflow-hidden mb-1">
+                    <div
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{
+                        width: `${Math.min(allocPct * 3.3, 100)}%`,
+                        backgroundColor: sec.chartColor,
+                      }}
+                    ></div>
+                  </div>
+                </div>
+
+                {/* Sparkline Visual Component */}
+                {history && history.points.length > 0 && (
+                  <SectorSparkline
+                    data={history.points}
+                    color={sec.chartColor}
+                    trendPct={history.trendPct}
+                    height={36}
+                    showLabels={true}
+                    showTrendBadge={true}
+                  />
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
 

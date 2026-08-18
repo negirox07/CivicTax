@@ -25,6 +25,13 @@ export interface SectorDefinition {
     label: string;
     description: string;
   };
+  scope?: string;
+  socioEconomicImpact?: {
+    overview: string;
+    macroBenefit: string;
+    humanWelfareGain: string;
+    policyPrograms: string[];
+  };
 }
 
 export type SectorAllocations = Record<SectorId, number>; // percentage values totaling 100
