@@ -15,6 +15,7 @@ import { SupabaseSetupModal } from './components/SupabaseSetupModal';
 import { CookieConsentBanner } from './components/CookieConsentBanner';
 import { SurveyTermsModal } from './components/SurveyTermsModal';
 import { AccountPrivacyModal, PrivacyTab } from './components/AccountPrivacyModal';
+import { AdUnit } from './components/AdUnit';
 import { TaxRecord, CitizenUser } from './types';
 import {
   fetchAllTaxRecords,
@@ -196,6 +197,11 @@ export default function App() {
         dataSource={dataSource}
       />
 
+      {/* AdSense: leaderboard placement, top of page content */}
+      <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+        <AdUnit adSlot="6462664625" adFormat="auto" fullWidthResponsive />
+      </div>
+
       {/* Main View Router */}
       <main className="flex-1">
         {/* LANDING PAGE: Global Public Dashboard (VISIBLE TO ALL) */}
@@ -337,6 +343,11 @@ export default function App() {
           />
         )}
       </main>
+
+      {/* AdSense: relaxed/multiplex placement, end of page content */}
+      <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pb-2">
+        <AdUnit adSlot="9351612491" adFormat="autorelaxed" />
+      </div>
 
       {/* Certificate Modal */}
       <CertificateModal
