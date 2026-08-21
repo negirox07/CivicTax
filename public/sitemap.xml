@@ -1,54 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+  CivicTax is a single-page application: all views (filing, dashboard,
+  transparency, reports, about, privacy) render client-side under one URL
+  and are not separately crawlable "#hash" routes, so only the real,
+  indexable document is listed here. Adding hash-fragment URLs would be
+  misleading to crawlers, since Google canonicalizes everything after "#"
+  back to the base URL.
+-->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
-  <!-- Homepage & Global Public Consensus Dashboard -->
   <url>
-    <loc>https://civictax.org/</loc>
-    <lastmod>2026-08-14</lastmod>
+    <loc>https://civic-tax.vercel.app/</loc>
+    <lastmod>2026-08-21</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
-  </url>
-  <!-- Participatory Tax Filing & Allocation Tool -->
-  <url>
-    <loc>https://civictax.org/#filing</loc>
-    <lastmod>2026-08-14</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.9</priority>
-  </url>
-  <!-- Citizen Portfolio & Historical Ledger -->
-  <url>
-    <loc>https://civictax.org/#dashboard</loc>
-    <lastmod>2026-08-14</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <!-- Civic Transparency & Consensus Ledger -->
-  <url>
-    <loc>https://civictax.org/#transparency</loc>
-    <lastmod>2026-08-14</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <!-- Annual Tax & Impact PDF Reports -->
-  <url>
-    <loc>https://civictax.org/#reports</loc>
-    <lastmod>2026-08-14</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <!-- About Us & Connect -->
-  <url>
-    <loc>https://civictax.org/#about</loc>
-    <lastmod>2026-08-14</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <!-- Privacy Policy & Data Governance -->
-  <url>
-    <loc>https://civictax.org/#privacy</loc>
-    <lastmod>2026-08-14</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
   </url>
 </urlset>

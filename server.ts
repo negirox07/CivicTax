@@ -472,56 +472,23 @@ Respond strictly in valid JSON format.`;
     }
   });
 
-  // SEO: robots.txt endpoint
+  // SEO: robots.txt endpoint (mirrors public/robots.txt for non-static deployments)
   app.get("/robots.txt", (_req: Request, res: Response) => {
-    res.type("text/plain").send(`User-agent: *\nAllow: /\n\nSitemap: https://civictax.org/sitemap.xml\n`);
+    res.type("text/plain").send(`User-agent: *\nAllow: /\n\nSitemap: https://civic-tax.vercel.app/sitemap.xml\n`);
   });
 
-  // SEO: sitemap.xml endpoint
+  // SEO: sitemap.xml endpoint (mirrors public/sitemap.xml for non-static deployments)
+  // Note: CivicTax is a single-page app - all views live under one URL, so only
+  // the real document is listed. Hash-fragment "pages" are not separately
+  // crawlable and Google canonicalizes them back to the base URL anyway.
   app.get("/sitemap.xml", (_req: Request, res: Response) => {
     res.type("application/xml").send(`<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://civictax.org/</loc>
-    <lastmod>2026-08-15</lastmod>
+    <loc>https://civic-tax.vercel.app/</loc>
+    <lastmod>2026-08-21</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
-  </url>
-  <url>
-    <loc>https://civictax.org/#filing</loc>
-    <lastmod>2026-08-15</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://civictax.org/#dashboard</loc>
-    <lastmod>2026-08-15</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://civictax.org/#transparency</loc>
-    <lastmod>2026-08-15</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://civictax.org/#reports</loc>
-    <lastmod>2026-08-15</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://civictax.org/#privacy</loc>
-    <lastmod>2026-08-15</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://civictax.org/#about</loc>
-    <lastmod>2026-08-15</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
   </url>
 </urlset>`);
   });

@@ -2,4 +2,4 @@ User-agent: *
 Allow: /
 
 # Sitemaps
-Sitemap: https://civictax.org/sitemap.xml
+Sitemap: https://civic-tax.vercel.app/sitemap.xml
